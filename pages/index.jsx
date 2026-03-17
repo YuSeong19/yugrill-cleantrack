@@ -701,99 +701,11 @@ const app  = initializeApp(firebaseConfig);
 const db   = getDatabase(app);
 const auth = getAuth(app);
 
-// ── PIN ที่ใช้ป้องกันแอป (เปลี่ยนได้ที่นี่) ──
-const APP_PIN = '1234';
 
-// ════════════════════════════════
-// PIN SCREEN
-// ════════════════════════════════
-function showPinScreen(){
-  // ซ่อน content หลัก
-  document.querySelector('.main').style.display = 'none';
-  document.querySelector('.tabs') && (document.querySelector('.tabs').style.display='none');
-  document.querySelector('.bnav').style.display = 'none';
-
-  const el = document.createElement('div');
-  el.id = 'pin-screen';
-  el.innerHTML = \`
-    <div class="pin-box">
-      <div class="pin-logo">🍽️</div>
-      <div class="pin-title">YuGrill</div>
-      <div class="pin-sub">กรอก PIN เพื่อเข้าใช้งาน</div>
-      <div class="pin-dots" id="pinDots">
-        <div class="pd"></div><div class="pd"></div>
-        <div class="pd"></div><div class="pd"></div>
-      </div>
-      <div class="pin-err" id="pinErr"></div>
-      <div class="pin-pad">
-        \${[1,2,3,4,5,6,7,8,9,'',0,'⌫'].map(k=>\`
-          <button class="pk\${k===''?' pk-empty':''}" onclick="pinKey('\${k}')">\${k}</button>
-        \`).join('')}
-      </div>
-    </div>\`;
-  document.body.appendChild(el);
-
-  // inject PIN styles
-  const s = document.createElement('style');
-  s.textContent = \`
-    #pin-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;}
-    .pin-box{background:var(--card);border:1.5px solid var(--border);border-radius:24px;padding:32px 28px;width:300px;text-align:center;box-shadow:var(--shadow-lg);}
-    .pin-logo{font-size:40px;margin-bottom:8px;}
-    .pin-title{font-family:'Prompt',sans-serif;font-size:20px;font-weight:800;color:var(--text);}
-    .pin-sub{font-size:13px;color:var(--sub);margin-top:4px;margin-bottom:24px;}
-    .pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:8px;}
-    .pd{width:14px;height:14px;border-radius:50%;border:2px solid var(--border2);background:var(--bg);transition:.2s;}
-    .pd.filled{background:var(--violet);border-color:var(--violet);}
-    .pin-err{font-size:12px;color:var(--red);font-weight:700;min-height:18px;margin-bottom:12px;transition:.2s;}
-    .pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
-    .pk{background:var(--bg);border:1.5px solid var(--border2);border-radius:14px;height:56px;font-size:20px;font-weight:700;font-family:'Prompt',sans-serif;color:var(--text);cursor:pointer;transition:all .15s;}
-    .pk:hover:not(.pk-empty){background:var(--violet-lt);border-color:var(--violet);color:var(--violet);}
-    .pk:active:not(.pk-empty){transform:scale(.93);}
-    .pk-empty{background:transparent;border-color:transparent;cursor:default;}
-  \`;
-  document.head.appendChild(s);
-}
-
-let pinVal = '';
-window.pinKey = (k) => {
-  if(k === '') return;
-  if(k === '⌫'){
-    pinVal = pinVal.slice(0,-1);
-  } else if(pinVal.length < 4){
-    pinVal += k;
-  }
-  // update dots
-  document.querySelectorAll('.pd').forEach((d,i)=>
-    d.classList.toggle('filled', i < pinVal.length));
-  // check
-  if(pinVal.length === 4){
-    if(pinVal === APP_PIN){
-      document.getElementById('pin-screen').style.opacity='0';
-      document.getElementById('pin-screen').style.transition='opacity .3s';
-      setTimeout(()=>{
-        document.getElementById('pin-screen').remove();
-        document.querySelector('.main').style.display='';
-        document.querySelector('.bnav').style.display='';
-        if(window.innerWidth > 640)
-          document.querySelector('.tabs').style.display='';
-      }, 300);
-    } else {
-      document.getElementById('pinErr').textContent = '❌ PIN ไม่ถูกต้อง';
-      document.querySelectorAll('.pd').forEach(d=>d.style.background='var(--red)');
-      setTimeout(()=>{
-        pinVal='';
-        document.querySelectorAll('.pd').forEach(d=>{d.classList.remove('filled');d.style.background='';});
-        document.getElementById('pinErr').textContent='';
-      },800);
-    }
-  }
-};
 
 // ════════════════════════════════
 // AUTH → then connect DB
 // ════════════════════════════════
-showPinScreen();
-
 onAuthStateChanged(auth, user => {
   if(!user) {
     signInAnonymously(auth).catch(e => console.error('Auth error:', e));
