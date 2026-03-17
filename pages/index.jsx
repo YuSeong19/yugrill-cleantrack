@@ -822,6 +822,10 @@ function connectDB(){
         <meta charSet="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
         <title>YuGrill</title>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <meta name="theme-color" content="#8B1A1A" />
         <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=Prompt:wght@600;700;800&display=swap" rel="stylesheet" />
         <style dangerouslySetInnerHTML={{ __html: `:root {
   /* ══════════════════════════════════════
@@ -971,7 +975,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
   display: flex; align-items: center; gap: 12px; height: 56px;
   box-shadow: var(--shadow);
 }
-.logo { width: 36px; height: 36px; background: linear-gradient(135deg, var(--green), var(--green-mid)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; box-shadow: 0 2px 8px rgba(22,163,74,.3); }
+.logo { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; box-shadow: 0 2px 8px rgba(139,26,26,.3); }
 .hdr-title { flex: 1; }
 .hdr-title h1 { font-family: 'Prompt', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.2; }
 .hdr-title p { font-size: 11px; color: var(--sub); }
@@ -1285,7 +1289,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
       </Head>
       <div dangerouslySetInnerHTML={{ __html: `<!-- HEADER -->
 <div class="hdr">
-  <div class="logo">🍽️</div>
+  <div class="logo"><img src="/logo.png" alt="YuGrill" style="width:100%;height:100%;object-fit:cover;border-radius:10px"></div>
   <div class="hdr-title">
     <h1>YuGrill</h1>
     <p>ระบบจัดการร้านอาหาร</p>
