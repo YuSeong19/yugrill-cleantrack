@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 export default function YuGrill() {
   useEffect(() => {
     const s1 = document.createElement('script')
-    s1.textContent = `>
+    s1.textContent = `
 // ══════════════ DATA ══════════════
 let staff = [
   {id:'s1',name:'แอม', emo:'👩',role:'หัวหน้าพนักงาน'},
