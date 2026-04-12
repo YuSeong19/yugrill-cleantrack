@@ -132,8 +132,8 @@ function setTodayView(v){
 }
 function setTaskView(v){
   taskView=v;
-  document.getElementById('window.tasks-vt-list').classList.toggle('on',v==='list');
-  document.getElementById('window.tasks-vt-grid').classList.toggle('on',v==='grid');
+  document.getElementById('tasks-vt-list').classList.toggle('on',v==='list');
+  document.getElementById('tasks-vt-grid').classList.toggle('on',v==='grid');
   ['mgr-am-list','mgr-pm-list'].forEach(id=>{
     const el=document.getElementById(id);
     el.className='mgr-list'+(v==='grid'?' grid-view':'');
@@ -225,7 +225,7 @@ function renderAlert(){
 // ─── TASKS TAB ───
 function renderTasks(){
   const all=window.tasks.length,am=window.tasks.filter(t=>t.shift==='am'),pm=window.tasks.filter(t=>t.shift==='pm');
-  document.getElementById('window.tasks-count-label').textContent=\`\${all} รายการ · เช้า \${am.length} · เย็น \${pm.length}\`;
+  document.getElementById('tasks-count-label').textContent=\`\${all} รายการ · เช้า \${am.length} · เย็น \${pm.length}\`;
   document.getElementById('mgr-am-cnt').textContent=am.length;
   document.getElementById('mgr-pm-cnt').textContent=pm.length;
   ['am','pm'].forEach(sh=>{
@@ -407,7 +407,7 @@ function renderCI(){
     document.getElementById('ciSub').textContent='ใครเป็นคนทำงาน?';
     bb.style.display='none';nb.textContent='ถัดไป →';nb.disabled=!ci.staff;
     bd.innerHTML=\`<div class="steps">\${dots}</div>
-      <div class="window.staff-chips" id="ciStaffWrap">
+      <div class="staff-chips" id="ciStaffWrap">
         \${window.staff.map(s=>\`<div class="schip\${ci.staff===s.id?' on':''}" onclick="ciPickStaff('\${s.id}')">
           <div class="emo">\${s.emo}</div><div class="sn">\${s.name}</div></div>\`).join('')}
       </div>\`;
@@ -552,7 +552,7 @@ function renderHist(){
   document.getElementById('hpn-label').textContent=getPeriodLabel();
   const filtered=window.hist.filter(h=>h.ts>=start&&h.ts<end);
   document.getElementById('hpn-count').textContent=filtered.length?\`\${filtered.length} รายการ\`:'';
-  const el=document.getElementById('window.hist-list');
+  const el=document.getElementById('hist-list');
   if(!filtered.length){el.innerHTML=\`<div class="empty"><div class="ei">📸</div><p>ไม่มีประวัติในช่วงนี้</p></div>\`;return;}
   if(histFilter==='day'){
     el.innerHTML=filtered.map((h,hi)=>hCard(h,window.hist.indexOf(h))).join('');
@@ -560,8 +560,8 @@ function renderHist(){
     const groups={};
     filtered.forEach(h=>{const k=h.ts.toDateString();if(!groups[k])groups[k]={label:fmtDateFull(h.ts),items:[]};groups[k].items.push(h);});
     el.innerHTML=Object.values(groups).map(g=>\`
-      <div class="window.hist-day-group">
-        <div class="window.hist-day-hdr">\${g.label}<span class="window.hist-day-cnt">\${g.items.length} รายการ</span></div>
+      <div class="hist-day-group">
+        <div class="hist-day-hdr">\${g.label}<span class="hist-day-cnt">\${g.items.length} รายการ</span></div>
         \${g.items.map(h=>hCard(h,window.hist.indexOf(h))).join('')}
       </div>\`).join('');
   }
@@ -586,8 +586,8 @@ function hCard(h,hi){
 
 // ─── STAFF ───
 function renderStaff(){
-  document.getElementById('window.staff-count-label').textContent=\`\${window.staff.length} คน\`;
-  document.getElementById('window.staff-cards').innerHTML=window.staff.map(s=>{
+  document.getElementById('staff-count-label').textContent=\`\${window.staff.length} คน\`;
+  document.getElementById('staff-cards').innerHTML=window.staff.map(s=>{
     const myHist=window.hist.filter(h=>h.who===s.id);
     const ph=myHist.filter(h=>h.photos.length>0).length;
     return\`<div class="sc">
@@ -600,7 +600,7 @@ function renderStaff(){
         <button class="sc-act del" onclick="doDeleteStaffById('\${s.id}')">🗑</button>
       </div>
     </div>\`;
-  }).join('')+\`<div class="add-window.staff-card" onclick="openStaffEdit(null)">
+  }).join('')+\`<div class="add-staff-card" onclick="openStaffEdit(null)">
     <div class="plus">➕</div><p>เพิ่มพนักงาน</p>
   </div>\`;
 }
@@ -740,7 +740,7 @@ function connectDB(){
     }
   }
 
-  // SYNC window.tasks
+  // SYNC tasks
   onValue(ref(db,'tasks'), snap => {
     if(syncing) return;
     const data = snap.val();
@@ -757,7 +757,7 @@ function connectDB(){
     setStatus(true);
   }, err=>{ setStatus(false); console.error(err); });
 
-  // SYNC window.staff
+  // SYNC staff
   onValue(ref(db,'staff'), snap => {
     if(syncing) return;
     const data = snap.val();
@@ -768,7 +768,7 @@ function connectDB(){
     }
   });
 
-  // SYNC window.hist
+  // SYNC hist
   onValue(ref(db,'hist'), snap => {
     if(syncing) return;
     const data = snap.val();
@@ -1186,10 +1186,10 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 .sc-act { flex: 1; padding: 7px 4px; border-radius: var(--rad-s); border: 1.5px solid var(--border2); background: var(--bg); color: var(--sub); font-family: 'Sarabun', sans-serif; font-size: 11px; font-weight: 700; cursor: pointer; transition: all .15s; }
 .sc-act:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-lt); }
 .sc-act.del:hover { border-color: var(--red); color: var(--red); background: var(--red-lt); }
-.add-window.staff-card { background: var(--card); border: 2px dashed var(--border2); border-radius: var(--rad); min-height: 130px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; transition: all .2s; box-shadow: var(--shadow); }
-.add-window.staff-card:hover { border-color: var(--green); background: var(--green-lt); }
-.add-window.staff-card .plus { font-size: 28px; color: var(--dim); }
-.add-window.staff-card p { font-size: 12px; color: var(--sub); font-weight: 600; }
+.add-staff-card { background: var(--card); border: 2px dashed var(--border2); border-radius: var(--rad); min-height: 130px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; cursor: pointer; transition: all .2s; box-shadow: var(--shadow); }
+.add-staff-card:hover { border-color: var(--green); background: var(--green-lt); }
+.add-staff-card .plus { font-size: 28px; color: var(--dim); }
+.add-staff-card p { font-size: 12px; color: var(--sub); font-weight: 600; }
 
 /* ─── LIGHTBOX ─── */
 .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 700; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
@@ -1378,16 +1378,16 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
   </div>
 
   <!-- ══ TASKS ══ -->
-  <div id="tab-window.tasks" style="display:none">
+  <div id="tab-tasks" style="display:none">
     <div class="page-header">
       <div>
         <h2>รายการงาน</h2>
-        <p id="window.tasks-count-label"></p>
+        <p id="tasks-count-label"></p>
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <div class="vt-wrap">
-          <button class="vt-btn on" id="window.tasks-vt-list" onclick="setTaskView('list')">☰</button>
-          <button class="vt-btn" id="window.tasks-vt-grid" onclick="setTaskView('grid')">⊞</button>
+          <button class="vt-btn on" id="tasks-vt-list" onclick="setTaskView('list')">☰</button>
+          <button class="vt-btn" id="tasks-vt-grid" onclick="setTaskView('grid')">⊞</button>
         </div>
         <button class="add-btn" onclick="openAddModal()">
           <span>＋</span> เพิ่มงาน
@@ -1405,12 +1405,12 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
   </div>
 
   <!-- ══ STAFF ══ -->
-  <div id="tab-window.staff" style="display:none">
+  <div id="tab-staff" style="display:none">
     <div class="page-header">
-      <div><h2>พนักงาน</h2><p id="window.staff-count-label"></p></div>
+      <div><h2>พนักงาน</h2><p id="staff-count-label"></p></div>
       <button class="add-btn" onclick="openStaffEdit(null)"><span>＋</span> เพิ่มพนักงาน</button>
     </div>
-    <div class="window.staff-grid" id="window.staff-cards"></div>
+    <div class="staff-grid" id="staff-cards"></div>
   </div>
 
   <!-- ══ HISTORY ══ -->
@@ -1444,7 +1444,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
       <div class="pnav-count" id="hpn-count"></div>
       <button class="pnav-btn" onclick="shiftHist(1)">›</button>
     </div>
-    <div id="window.hist-list"></div>
+    <div id="hist-list"></div>
   </div>
 </div>
 
