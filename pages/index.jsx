@@ -716,9 +716,7 @@ onAuthStateChanged(auth, user => {
 
 function connectDB(){
   const objToArr = obj => obj ? Object.values(obj) : [];
-  // ใช้ timestamp แทน boolean เพื่อป้องกัน self-loop แต่ไม่ block remote update
-  let lastSaveTs = 0;
-  const SYNC_GRACE = 2000; // 2 วินาที หลัง save ไม่ต้อง re-render (ป้องกัน loop)
+  let syncing = false;
 
   function setStatus(online){
     let el = document.getElementById('fb-status');
@@ -742,83 +740,77 @@ function connectDB(){
     }
   }
 
-  // SYNC tasks — รับ update จากทุกเครื่องแบบ realtime
+  // SYNC tasks
   onValue(ref(db,'tasks'), snap => {
+    if(syncing) return;
     const data = snap.val();
     if(data){
-      const fromRemote = Date.now() - lastSaveTs > SYNC_GRACE;
       window.tasks = objToArr(data).map(t=>({
         ...t,
         photos: t.photos ? Object.values(t.photos) : [],
         done: t.done ?? false, doneBy: t.doneBy ?? null, doneAt: t.doneAt ?? null,
       }));
-      if(fromRemote){
-        renderToday();
-        if(window.curTab==='tasks') renderTasks();
-      }
+      renderToday();
+      if(window.curTab==='tasks') renderTasks();
     }
     setStatus(true);
   }, err=>{ setStatus(false); console.error(err); });
 
-  // SYNC staff — รับ update จากทุกเครื่องแบบ realtime
+  // SYNC staff
   onValue(ref(db,'staff'), snap => {
+    if(syncing) return;
     const data = snap.val();
     if(data){
-      const fromRemote = Date.now() - lastSaveTs > SYNC_GRACE;
       window.staff = objToArr(data);
-      if(fromRemote){
-        renderToday();
-        if(window.curTab==='staff') renderStaff();
-      }
+      renderToday();
+      if(window.curTab==='staff') renderStaff();
     }
   });
 
-  // SYNC hist — รับ update จากทุกเครื่องแบบ realtime
+  // SYNC hist
   onValue(ref(db,'hist'), snap => {
+    if(syncing) return;
     const data = snap.val();
     if(data){
-      const fromRemote = Date.now() - lastSaveTs > SYNC_GRACE;
       window.hist = objToArr(data).map(h=>({
         ...h, ts: new Date(h.ts),
         photos: h.photos ? Object.values(h.photos) : [],
       })).sort((a,b)=>b.ts-a.ts);
-      if(fromRemote && window.curTab==='history') renderHist();
+      if(window.curTab==='history') renderHist();
     }
   });
 
   window.fbSaveTasks = () => {
-    lastSaveTs = Date.now();
+    syncing=true;
     const obj={};
-    (window.tasks || []).forEach(t=>{
-      obj[t.id]={...t, photos:(t.photos||[]).reduce((o,p,i)=>{o[i]=p;return o;},{})};
+    window.tasks.forEach(t=>{
+      obj[t.id]={...t, photos:t.photos.reduce((o,p,i)=>{o[i]=p;return o;},{})};
     });
-    set(ref(db,'tasks'),obj);
+    set(ref(db,'tasks'),obj).finally(()=>syncing=false);
   };
 
   window.fbSaveStaff = () => {
-    lastSaveTs = Date.now();
+    syncing=true;
     const obj={};
-    (window.staff || []).forEach(s=>{ obj[s.id]=s; });
-    set(ref(db,'staff'),obj);
+    window.staff.forEach(s=>{ obj[s.id]=s; });
+    set(ref(db,'staff'),obj).finally(()=>syncing=false);
   };
 
   window.fbSaveHist = () => {
-    lastSaveTs = Date.now();
+    syncing=true;
     const obj={};
-    (window.hist || []).forEach((h,i)=>{
+    window.hist.forEach((h,i)=>{
       obj['h'+(h.ts.getTime()+'_'+i)]={
         ...h, ts: h.ts.toISOString(),
-        photos: (h.photos||[]).reduce((o,p,j)=>{o[j]=p;return o;},{}),
+        photos: h.photos.reduce((o,p,j)=>{o[j]=p;return o;},{}),
       };
     });
-    set(ref(db,'hist'),obj);
+    set(ref(db,'hist'),obj).finally(()=>syncing=false);
   };
 
   // ครั้งแรก: ถ้า Firebase ว่างให้ push ข้อมูลตั้งต้น
   onValue(ref(db,'tasks'), snap=>{
-    if(!snap.exists()){
-      setTimeout(()=>{ window.fbSaveTasks(); window.fbSaveStaff(); }, 300);
-    }
+    if(!snap.exists()){ window.fbSaveTasks(); window.fbSaveStaff(); }
   }, {onlyOnce:true});
 }`
     document.body.appendChild(s2)
