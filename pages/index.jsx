@@ -5,6 +5,28 @@ export default function YuGrill() {
   useEffect(() => {
     const s1 = document.createElement('script')
     s1.textContent = `
+
+// ─── DEBUG ERROR CATCHER ───
+window._errs=[];
+window.onerror=function(msg,src,line,col,err){
+  window._errs.push((err?err.message:msg)+' L'+line);
+  showDebug();
+};
+window.onunhandledrejection=function(e){
+  window._errs.push('Promise: '+(e.reason&&e.reason.message||e.reason));
+  showDebug();
+};
+function showDebug(){
+  var d=document.getElementById('_dbg');
+  if(!d){
+    d=document.createElement('div');
+    d.id='_dbg';
+    d.style.cssText='position:fixed;bottom:80px;left:8px;right:8px;background:#1e293b;color:#f87171;font-size:11px;padding:10px;border-radius:12px;z-index:9999;max-height:200px;overflow-y:auto;font-family:monospace;white-space:pre-wrap;';
+    document.body.appendChild(d);
+  }
+  d.textContent='🐛 JS Errors:\n'+window._errs.join('\n');
+}
+
 // ══════════════ DATA ══════════════
 window.staff = [
   {id:'s1',name:'แอม', emo:'👩',role:'หัวหน้าพนักงาน'},
