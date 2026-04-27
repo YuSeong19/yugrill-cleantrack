@@ -47,12 +47,7 @@ const TEMPLATES = [
 ];
 const EMOJIS=['👩','👨','🧑','👩‍🍳','👨‍🍳','🧑‍🍳','👩‍💼','👨‍💼','🧹','⭐','🌟','💪','😊','🐱','🐶','🦊','🌸','⚡'];
 const FREQ_ORDER=['ทุกวัน','ทุก 3 วัน','ทุกสัปดาห์','ทุก 2 สัปดาห์','ทุกเดือน'];
-window.zones = [
-  {id:'front',   name:'หน้าบ้าน', icon:'🏠', color:'blue'},
-  {id:'kitchen', name:'ครัว',     icon:'🍳', color:'amber'},
-];
-function getZone(id){ return window.zones.find(z=>z.id===id)||{id,name:id,icon:'📍',color:'blue'}; }
-function getZoneByName(name){ return window.zones.find(z=>z.name===name); }
+const ZONE_GROUPS={ front:['โถงอาหาร'], kitchen:['ครัว'] };
 
 window.hist=[]; let nextId=20,nextSid=10; window.curTab='today'; window.fbReady=false;
 let histFilter='day',histOffset=0;
@@ -66,40 +61,6 @@ let todayView='list',taskView='list';
 let confirmCb=null;
 
 const getStaff=id=>window.staff.find(s=>s.id===id);
-
-// ─── FREQUENCY RESET ───
-function freqToDays(freq){
-  switch(freq){
-    case 'ทุกวัน':         return 1;
-    case 'ทุก 3 วัน':     return 3;
-    case 'ทุกสัปดาห์':    return 7;
-    case 'ทุก 2 สัปดาห์': return 14;
-    case 'ทุกเดือน':      return 30;
-    default:               return 1;
-  }
-}
-function taskStatus(t){
-  const days = freqToDays(t.freq);
-  if(!t.done || !t.doneDate) return 'due';
-  const today = new Date(); today.setHours(0,0,0,0);
-  const doneD = new Date(t.doneDate); doneD.setHours(0,0,0,0);
-  const daysSince = Math.round((today - doneD) / 86400000);
-  if(daysSince < days)  return 'done';
-  if(daysSince === days) return 'due';
-  return 'overdue';
-}
-function applyFreqReset(){
-  let changed=false;
-  window.tasks.forEach(t=>{
-    const st=taskStatus(t);
-    if((st==='due'||st==='overdue') && t.done){
-      t.done=false; t.photos=[]; t.doneBy=null; t.doneAt=null;
-      changed=true;
-    }
-  });
-  if(changed && window.fbSaveTasks) fbSaveTasks();
-}
-
 const stampNow=()=>{const n=new Date();return\`\${n.getHours().toString().padStart(2,'0')}:\${n.getMinutes().toString().padStart(2,'0')} น.\`;};
 const thDays=['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์'];
 const thMonths=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
@@ -110,14 +71,10 @@ function isSameDay(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()==
 
 // ─── INIT ───
 function init(){
-  document.documentElement.classList.remove('dark');
+  document.documentElement.classList.remove('dark'); // force light mode always
   document.getElementById('datechip').textContent=fmtDate(new Date());
   document.getElementById('themeBtn').textContent='🌙';
-  renderZoneSeg();
   renderToday();
-  renderStaff();
-  goTab('today');
-  // Firebase will call renderToday again with real data once connected
 }
 
 // ─── TABS ───
@@ -136,10 +93,8 @@ function goTab(t){
 
 // ─── FILTER HELPERS ───
 function matchFilter(t){
-  if(alertZoneFilter!=='all'){
-    const z=getZone(alertZoneFilter);
-    if(t.zone!==z.name) return false;
-  }
+  if(alertZoneFilter==='front'   && !ZONE_GROUPS.front.includes(t.zone))   return false;
+  if(alertZoneFilter==='kitchen' && !ZONE_GROUPS.kitchen.includes(t.zone)) return false;
   if(alertFreqFilter!=='all'){
     const cutoff=FREQ_ORDER.indexOf(alertFreqFilter);
     const tidx=FREQ_ORDER.indexOf(t.freq);
@@ -187,7 +142,6 @@ function setTaskView(v){
 
 // ─── RENDER TODAY ───
 function renderToday(){
-  if(window.fbReady) applyFreqReset();
   ['am','pm'].forEach(sh=>{
     const all=window.tasks.filter(t=>t.shift===sh);
     const list=all.filter(matchFilter);
@@ -211,38 +165,30 @@ function renderToday(){
 }
 
 function tCard(t,i){
-  const st=taskStatus(t);
-  const isOverdue=st==='overdue';
-  const isDone=st==='done';
-  const isWarn=!isDone;
-  const zObj=getZoneByName(t.zone);
-  const zIcon=zObj?zObj.icon:'📍';
-  const zId=zObj?zObj.id:'other';
-  const overdueTag=isOverdue?\`<div class=\"overdue-tag\">⚠️ ไม่ได้ทำตามกำหนด</div>\`:'';
-  const noteEl=t.note?\`<div class=\"tnote\">📝 \${t.note}</div>\`:'';
-  const strip=t.photos&&t.photos.length?\`<div class=\"photo-strip\">\${t.photos.slice(0,3).map((p,pi)=>\`<img src=\"\${p}\" onclick=\"openLB(\${t.id},\${pi})\">\`).join('')}\${t.photos.length>3?\`<div class=\"more-ph\">+\${t.photos.length-3}</div>\`:''}</div>\`:'';
-  const doneInfo=isDone&&t.doneBy?\`<div class=\"done-info\"><div class=\"dot\"></div>ทำโดย \${(getStaff(t.doneBy)||{name:t.doneBy}).name} · \${t.doneAt} · 📸 \${t.photos?t.photos.length:0} รูป</div>\`:'';
-  const warnEl=isWarn&&!isOverdue?\`<div><span class=\"warn-badge\">⚠️ ยังไม่เสร็จ</span></div>\`:'';
-  const btn=!isDone
-    ?\`<button class=\"ci-btn\${isWarn?' ci-btn-warn':''}\" onclick=\"openCI(\${t.id})\">📷 เช็คอิน</button>\`
-    :\`<button class=\"undo-btn\" onclick=\"undoTask(\${t.id})\">↩ ยกเลิก</button>\`;
-  const accentColor=isDone?'var(--green)':isOverdue?'var(--orange,#f97316)':isWarn?'var(--red)':'transparent';
-  return\`<div class=\"tcard\${isDone?' done':''}\${isOverdue?' tcard-overdue':isWarn?' tcard-warn':''}\" style=\"animation-delay:\${i*.04}s\">
-    \${overdueTag}
-    <div class=\"tcard-accent\" style=\"background:\${accentColor}\"></div>
-    <div class=\"tinfo\">
-      <div class=\"tname\">\${t.name}</div>
-      <div class=\"tmeta\">
-        <span class=\"tag tz-\${zId}\">\${zIcon} \${t.zone}</span>
-        <span class=\"tag \${t.shift==='am'?'tf':'tf-pm'}\">\${t.freq}</span>
+  const isWarn=!t.done;
+  const noteEl=t.note?\`<div class="tnote">📝 \${t.note}</div>\`:'';
+  const strip=t.photos.length?\`<div class="photo-strip">\${t.photos.slice(0,3).map((p,pi)=>\`<img src="\${p}" onclick="openLB(\${t.id},\${pi})">\`).join('')}\${t.photos.length>3?\`<div class="more-ph">+\${t.photos.length-3}</div>\`:''}</div>\`:'';
+  const doneInfo=t.done&&t.doneBy?\`<div class="done-info"><div class="dot"></div>ทำโดย \${(getStaff(t.doneBy)||{name:t.doneBy}).name} · \${t.doneAt} · 📸 \${t.photos.length} รูป</div>\`:'';
+  const warnEl=isWarn?\`<div><span class="warn-badge">⚠️ ยังไม่เสร็จ</span></div>\`:'';
+  const btn=!t.done
+    ?\`<button class="ci-btn\${isWarn?' ci-btn-warn':''}" onclick="openCI(\${t.id})">📷 เช็คอิน</button>\`
+    :\`<button class="undo-btn" onclick="undoTask(\${t.id})">↩ ยกเลิก</button>\`;
+  const accentColor=t.done?'var(--green)':isWarn?'var(--red)':'transparent';
+  return\`<div class="tcard\${t.done?' done':''}\${isWarn?' tcard-warn':''}" style="animation-delay:\${i*.04}s">
+    <div class="tcard-accent" style="background:\${accentColor}"></div>
+    <div class="tinfo">
+      <div class="tname">\${t.name}</div>
+      <div class="tmeta">
+        <span class="tag \${t.zone==='ครัว'?'tz-kitchen':'tz-front'}">\${t.zone==='ครัว'?'🍳 ครัว':'🏠 หน้าบ้าน'}</span>
+        <span class="tag \${t.shift==='am'?'tf':'tf-pm'}">\${t.freq}</span>
       </div>
-      \${noteEl}\${overdueTag===''?warnEl:''}\${doneInfo}\${strip}
-      <div class=\"tacts\" style=\"margin-top:8px\">
-        <button class=\"tact ea\" onclick=\"openEditModal(\${t.id})\">✏️ แก้ไข</button>
-        <button class=\"tact da\" onclick=\"confirmDelTask(\${t.id})\">🗑 ลบ</button>
+      \${noteEl}\${warnEl}\${doneInfo}\${strip}
+      <div class="tacts" style="margin-top:8px">
+        <button class="tact ea" onclick="openEditModal(\${t.id})">✏️ แก้ไข</button>
+        <button class="tact da" onclick="confirmDelTask(\${t.id})">🗑 ลบ</button>
       </div>
     </div>
-    <div class=\"tright\">\${btn}</div>
+    <div class="tright">\${btn}</div>
   </div>\`;
 }
 
@@ -252,10 +198,8 @@ function renderAlert(){
   const allUndone=window.tasks.filter(t=>!t.done);
   if(!allUndone.length){el.innerHTML='';return;}
   let zf=allUndone;
-  if(alertZoneFilter!=='all'){
-    const zn=getZone(alertZoneFilter).name;
-    zf=allUndone.filter(t=>t.zone===zn);
-  }
+  if(alertZoneFilter==='front')   zf=allUndone.filter(t=>ZONE_GROUPS.front.includes(t.zone));
+  if(alertZoneFilter==='kitchen') zf=allUndone.filter(t=>ZONE_GROUPS.kitchen.includes(t.zone));
   let overdue=zf;
   if(alertFreqFilter!=='all'){
     const cutoff=FREQ_ORDER.indexOf(alertFreqFilter);
@@ -352,7 +296,7 @@ function openEditModal(id){
   document.getElementById('eNote').value=t?t.note||'':'';
   document.getElementById('eFreq').value=t?t.freq:'ทุกวัน';
   eShift=t?t.shift:'am';
-  eZone=t?(getZoneByName(t.zone)?getZoneByName(t.zone).id:(window.zones[0]?.id||'front')):(window.zones[0]?.id||'front');
+  eZone=t?(ZONE_GROUPS.kitchen.includes(t.zone)?'kitchen':'front'):'front';
   refreshShiftSeg();refreshZoneSeg();
   // photos
   const hasPhotos = t&&t.photos&&t.photos.length>0;
@@ -398,7 +342,7 @@ function openEditModalFromTpl(tpl){
   document.getElementById('eNote').value=tpl.note||'';
   document.getElementById('eFreq').value=tpl.freq;
   eShift=tpl.shift;
-  eZone=getZoneByName(tpl.zone)?getZoneByName(tpl.zone).id:(window.zones[0]?.id||'front');
+  eZone=ZONE_GROUPS.kitchen.includes(tpl.zone)?'kitchen':'front';
   refreshShiftSeg();refreshZoneSeg();
   document.getElementById('editOvl').style.display='flex';
 }
@@ -408,10 +352,8 @@ function refreshShiftSeg(){
 }
 function eSetShift(sh){eShift=sh;refreshShiftSeg();}
 function refreshZoneSeg(){
-  window.zones.forEach(z=>{
-    const el=document.getElementById('zone-seg-'+z.id);
-    if(el) el.className='seg-btn'+(eZone===z.id?' on-am':'');
-  });
+  document.getElementById('zone-front').className  ='seg-btn'+(eZone==='front'?' on-am':'');
+  document.getElementById('zone-kitchen').className='seg-btn'+(eZone==='kitchen'?' on-pm':'');
 }
 function eSetZone(z){eZone=z;refreshZoneSeg();}
 function saveTask(){
@@ -419,7 +361,7 @@ function saveTask(){
   if(!name){document.getElementById('eName').classList.add('err');document.getElementById('eName').focus();return;}
   document.getElementById('eName').classList.remove('err');
   const note=document.getElementById('eNote').value.trim();
-  const zone=getZone(eZone).name;
+  const zone=eZone==='kitchen'?'ครัว':'โถงอาหาร';
   const freq=document.getElementById('eFreq').value;
   if(eId!==null){
     const t=window.tasks.find(x=>x.id===eId);
@@ -536,7 +478,7 @@ function commitCI(){
   const dateObj=new Date(now);
   ci.taskIds.forEach(id=>{
     const t=window.tasks.find(x=>x.id===id);if(!t)return;
-    t.done=true;t.doneBy=ci.staff;t.doneAt=ts;t.doneDate=ci.date;t.photos=[...ci.photos];
+    t.done=true;t.doneBy=ci.staff;t.doneAt=ts;t.photos=[...ci.photos];
     window.hist.unshift({name:t.name,zone:t.zone,shift:t.shift,who:ci.staff,time:ts,ts:dateObj,dateStr:fmtDateFull(dateObj),photos:[...ci.photos]});
   });
   closeModal('ciOvl');renderToday();
@@ -548,7 +490,7 @@ function undoTask(id){
   const t=window.tasks.find(x=>x.id===id);if(!t)return;
   showConfirm(\`ยกเลิกงาน "\${t.name}"?\`,()=>{
     window.hist=window.hist.filter(h=>!(h.name===t.name&&h.who===t.doneBy&&h.time===t.doneAt));
-    t.done=false;t.photos=[];t.doneBy=null;t.doneAt=null;t.doneDate=null;
+    t.done=false;t.photos=[];t.doneBy=null;t.doneAt=null;
     renderToday();if(window.curTab==='history') renderHist();
     if(window.fbSaveTasks) fbSaveTasks();
     if(window.fbSaveHist) fbSaveHist();
@@ -630,7 +572,7 @@ function hCard(h,hi){
     <div class="hcard-top">
       <div class="hcard-info">
         <div class="hcard-name">\${h.name}</div>
-        <div class="hcard-meta">\${getZoneByName(h.zone)?(getZoneByName(h.zone).icon+' '+h.zone):('📍 '+h.zone)} · \${h.shift==='am'?'🌅 เช้า':'🌙 เย็น'}<br>\${s.emo} \${s.name} · 🕐 \${h.time}\${h.dateStr?' · '+h.dateStr:''}</div>
+        <div class="hcard-meta">\${h.zone==='ครัว'?'🍳 ครัว':'🏠 หน้าบ้าน'} · \${h.shift==='am'?'🌅 เช้า':'🌙 เย็น'}<br>\${s.emo} \${s.name} · 🕐 \${h.time}\${h.dateStr?' · '+h.dateStr:''}</div>
       </div>
       <div class="hbadge">✅ เสร็จ</div>
     </div>
@@ -689,94 +631,6 @@ function doDeleteStaff(){
 function doDeleteStaffById(id){
   const s=window.staff.find(x=>x.id===id);if(!s)return;
   showConfirm(\`ลบพนักงาน "\${s.name}"?\`,()=>{window.staff=window.staff.filter(x=>x.id!==id);renderStaff();if(window.fbSaveStaff)fbSaveStaff();});
-}
-
-
-// ─── ZONE MANAGER ───
-let zEdit=null;
-function renderZoneSeg(){
-  const wrap=document.getElementById('zone-seg-wrap');
-  if(wrap) wrap.innerHTML=window.zones.map(z=>
-    \`<button class="seg-btn\${eZone===z.id?' on-am':''}" id="zone-seg-\${z.id}" onclick="eSetZone('\${z.id}')">\${z.icon} \${z.name}</button>\`
-  ).join('');
-  const af=document.getElementById('alert-zone-chips');
-  if(af) af.innerHTML=\`<div class="fchip\${alertZoneFilter==='all'?' on':''}" id="afz-all" onclick="setAlertZone('all')">ทั้งหมด</div>\`
-    +window.zones.map(z=>\`<div class="fchip\${alertZoneFilter===z.id?' on':''}" id="afz-\${z.id}" onclick="setAlertZone('\${z.id}')">\${z.icon} \${z.name}</div>\`).join('');
-}
-function openZoneMgr(){
-  renderZoneMgrList();
-  document.getElementById('zoneMgrOvl').style.display='flex';
-}
-function renderZoneMgrList(){
-  const list=document.getElementById('zoneMgrList');
-  if(!list) return;
-  list.innerHTML=window.zones.map(z=>\`
-    <div class="zone-row">
-      <span style="font-size:22px">\${z.icon}</span>
-      <div style="flex:1"><div class="zone-name">\${z.name}</div></div>
-      <div style="display:flex;gap:6px">
-        <button class="zbtn zbtn-edit" onclick="openZoneEdit('\${z.id}')">✏️</button>
-        <button class="zbtn zbtn-del"  onclick="deleteZone('\${z.id}')">🗑️</button>
-      </div>
-    </div>
-  \`).join('');
-}
-function openZoneEdit(zid){
-  zEdit=zid?window.zones.find(z=>z.id===zid):null;
-  document.getElementById('zNameInput').value=zEdit?zEdit.name:'';
-  document.getElementById('zIconInput').value=zEdit?zEdit.icon:'📍';
-  const COLOR_OPTS=['blue','amber','teal','pink','purple','green'];
-  const curColor=zEdit?zEdit.color:'blue';
-  document.getElementById('zColorWrap').innerHTML=COLOR_OPTS.map(col=>
-    \`<button class="zcol-btn tz-col-\${col}\${curColor===col?' zcol-on':''}" onclick="pickZoneColor('\${col}')">\${col}</button>\`
-  ).join('');
-  window._zPickedColor=curColor;
-  document.getElementById('zEditOvl').style.display='flex';
-}
-function pickZoneColor(col){
-  window._zPickedColor=col;
-  document.querySelectorAll('.zcol-btn').forEach(b=>b.classList.remove('zcol-on'));
-  const sel=document.querySelector('.tz-col-'+col);
-  if(sel) sel.classList.add('zcol-on');
-}
-function saveZone(){
-  const name=document.getElementById('zNameInput').value.trim();
-  const icon=document.getElementById('zIconInput').value.trim()||'📍';
-  const color=window._zPickedColor||'blue';
-  if(!name){alert('กรุณาใส่ชื่อโซน');return;}
-  if(zEdit){
-    const oldName=zEdit.name;
-    zEdit.name=name;zEdit.icon=icon;zEdit.color=color;
-    window.tasks.forEach(t=>{if(t.zone===oldName)t.zone=name;});
-    window.hist.forEach(h=>{if(h.zone===oldName)h.zone=name;});
-    if(window.fbSaveTasks) fbSaveTasks();
-    if(window.fbSaveHist)  fbSaveHist();
-  } else {
-    const id='z'+Date.now();
-    window.zones.push({id,name,icon,color});
-  }
-  if(window.fbSaveZones) fbSaveZones();
-  document.getElementById('zEditOvl').style.display='none';
-  renderZoneMgrList();renderZoneSeg();renderToday();
-  if(window.curTab==='tasks') renderTasks();
-}
-function deleteZone(zid){
-  const z=window.zones.find(x=>x.id===zid);
-  if(!z) return;
-  const inUse=window.tasks.filter(t=>t.zone===z.name).length;
-  const msg=inUse
-    ?('ลบโซน "'+z.name+'"? มีงาน '+inUse+' รายการที่ใช้โซนนี้ (จะเปลี่ยนเป็นโซนแรก)')
-    :('ลบโซน "'+z.name+'"?');
-  showConfirm(msg,function(){
-    const fallback=window.zones.find(x=>x.id!==zid);
-    window.tasks.forEach(t=>{if(t.zone===z.name)t.zone=fallback?fallback.name:'ไม่ระบุ';});
-    window.zones=window.zones.filter(x=>x.id!==zid);
-    if(eZone===zid) eZone=window.zones[0]?window.zones[0].id:'front';
-    if(window.fbSaveZones) fbSaveZones();
-    if(window.fbSaveTasks) fbSaveTasks();
-    renderZoneMgrList();renderZoneSeg();renderToday();
-    if(window.curTab==='tasks') renderTasks();
-  });
 }
 
 // ─── LIGHTBOX ───
@@ -886,7 +740,7 @@ function connectDB(){
     }
   }
 
-  // SYNC window.tasks
+  // SYNC tasks
   onValue(ref(db,'tasks'), snap => {
     if(syncing) return;
     const data = snap.val();
@@ -894,7 +748,7 @@ function connectDB(){
       window.tasks = objToArr(data).map(t=>({
         ...t,
         photos: t.photos ? Object.values(t.photos) : [],
-        done: t.done ?? false, doneBy: t.doneBy ?? null, doneAt: t.doneAt ?? null, doneDate: t.doneDate ?? null,
+        done: t.done ?? false, doneBy: t.doneBy ?? null, doneAt: t.doneAt ?? null,
       }));
       renderToday();
       if(window.curTab==='tasks') renderTasks();
@@ -903,7 +757,7 @@ function connectDB(){
     setStatus(true);
   }, err=>{ setStatus(false); console.error(err); });
 
-  // SYNC window.staff
+  // SYNC staff
   onValue(ref(db,'staff'), snap => {
     if(syncing) return;
     const data = snap.val();
@@ -914,7 +768,7 @@ function connectDB(){
     }
   });
 
-  // SYNC window.hist
+  // SYNC hist
   onValue(ref(db,'hist'), snap => {
     if(syncing) return;
     const data = snap.val();
@@ -924,17 +778,6 @@ function connectDB(){
         photos: h.photos ? Object.values(h.photos) : [],
       })).sort((a,b)=>b.ts-a.ts);
       if(window.curTab==='history') renderHist();
-    }
-  });
-
-  // SYNC zones
-  onValue(ref(db,'zones'), snap => {
-    if(syncing) return;
-    const data = snap.val();
-    if(data){
-      window.zones = Object.values(data);
-      if(window.renderZoneSeg) renderZoneSeg();
-      renderToday();
     }
   });
 
@@ -956,14 +799,6 @@ function connectDB(){
     set(ref(db,'staff'),obj).finally(()=>syncing=false);
   };
 
-  window.fbSaveZones = () => {
-    if(!window.fbReady) return;
-    syncing=true;
-    const obj={};
-    window.zones.forEach(z=>{obj[z.id]=z;});
-    set(ref(db,'zones'),obj).finally(()=>syncing=false);
-  };
-
   window.fbSaveHist = () => {
     if(!window.fbReady) return;
     syncing=true;
@@ -981,11 +816,11 @@ function connectDB(){
   onValue(ref(db,'tasks'), snap=>{
     window.fbReady = true;
     if(!snap.exists()){
+      // empty DB: push current local defaults as initial seed
       const t={}; window.tasks.forEach(x=>{t[x.id]={...x,photos:x.photos.reduce((o,p,i)=>{o[i]=p;return o;},{})};});
       set(ref(db,'tasks'),t);
       const s={}; window.staff.forEach(x=>{s[x.id]=x;});
       set(ref(db,'staff'),s);
-      const zobj={}; window.zones.forEach(z=>{zobj[z.id]=z;}); set(ref(db,'zones'),zobj);
     }
   }, {onlyOnce:true});
 }`
@@ -1444,27 +1279,6 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 .tpl-card .tpl-icon { font-size: 24px; margin-bottom: 6px; }
 .tpl-card .tpl-name { font-size: 12px; font-weight: 700; color: var(--text2); line-height: 1.3; }
 .tpl-card .tpl-zone { font-size: 10px; color: var(--sub); margin-top: 3px; }
-
-/* ── ZONE MANAGER ── */
-.zone-row{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:var(--rad);padding:10px 12px;box-shadow:var(--shadow);}
-.zone-name{font-weight:600;font-size:14px;color:var(--text);}
-.zbtn{border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px;background:var(--bg2);}
-.zbtn-del:hover{background:var(--red-lt);}.zbtn-edit:hover{background:var(--green-lt);}
-.zcol-btn{border:2px solid transparent;border-radius:8px;padding:4px 10px;cursor:pointer;font-size:13px;background:var(--bg2);transition:.15s;font-weight:600;}
-.zcol-btn.zcol-on{border-color:var(--text);transform:scale(1.1);}
-.tz-blue  {background:var(--blue-lt);color:var(--blue);}
-.tz-amber {background:var(--amber-lt);color:var(--amber);}
-.tz-teal  {background:#e6faf5;color:#0d9488;}
-.tz-pink  {background:var(--pink-lt);color:var(--pink);}
-.tz-purple{background:#ede9fe;color:#7c3aed;}
-.tz-green {background:var(--green-lt);color:var(--green);}
-.tz-other {background:var(--bg2);color:var(--sub);}
-.tz-col-blue  {background:#dbeafe;}.tz-col-amber{background:#fef3c7;}
-.tz-col-teal  {background:#ccfbf1;}.tz-col-pink {background:#fce7f3;}
-.tz-col-purple{background:#ede9fe;}.tz-col-green{background:#dcfce7;}
-.tcard-overdue{border-left:3px solid var(--orange,#f97316);background:rgba(249,115,22,.05);}
-.overdue-tag{font-size:11px;font-weight:700;color:var(--orange,#f97316);margin-bottom:4px;}
-
 .tpl-or { text-align: center; font-size: 12px; color: var(--dim); margin: 10px 0; position: relative; font-weight: 600; }
 .tpl-or::before, .tpl-or::after { content:''; position: absolute; top: 50%; width: 43%; height: 1.5px; background: var(--border); }
 .tpl-or::before { left: 0; } .tpl-or::after { right: 0; }
@@ -1523,7 +1337,9 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
     <div class="filter-block">
       <div class="filter-label">📍 โซน</div>
       <div class="filter-row">
-        <div id="alert-zone-chips" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        <div class="fchip on" id="afz-all"     onclick="setAlertZone('all')">ทั้งหมด</div>
+        <div class="fchip"    id="afz-front"   onclick="setAlertZone('front')">🏠 หน้าบ้าน</div>
+        <div class="fchip"    id="afz-kitchen" onclick="setAlertZone('kitchen')">🍳 ครัว</div>
       </div>
       <div class="filter-label">🔄 ความถี่</div>
       <div class="filter-row">
@@ -1562,7 +1378,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
   </div>
 
   <!-- ══ TASKS ══ -->
-  <div id="tab-window.tasks" style="display:none">
+  <div id="tab-tasks" style="display:none">
     <div class="page-header">
       <div>
         <h2>รายการงาน</h2>
@@ -1589,10 +1405,9 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
   </div>
 
   <!-- ══ STAFF ══ -->
-  <div id="tab-window.staff" style="display:none">
+  <div id="tab-staff" style="display:none">
     <div class="page-header">
       <div><h2>พนักงาน</h2><p id="staff-count-label"></p></div>
-      <button class="add-btn" onclick="openZoneMgr()" style="margin-left:auto">📍 จัดการโซน</button>
       <button class="add-btn" onclick="openStaffEdit(null)"><span>＋</span> เพิ่มพนักงาน</button>
     </div>
     <div class="staff-grid" id="staff-cards"></div>
@@ -1686,7 +1501,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
       <div class="msec">
         <div class="msec-title">โซน / พื้นที่</div>
         <div class="seg">
-          <div id="zone-seg-wrap" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+          <button class="seg-btn" id="zone-front"   onclick="eSetZone('front')">🏠 หน้าบ้าน</button>
+          <button class="seg-btn" id="zone-kitchen" onclick="eSetZone('kitchen')">🍳 ครัว</button>
         </div>
       </div>
       <div class="msec">
@@ -1778,29 +1594,6 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
   <div class="lb-info" id="lbInfo"></div>
   <div class="lb-nav" id="lbNav"></div>
 </div>` }} />
-
-      {/* ZONE MANAGER */}
-      <div className="ovl" id="zoneMgrOvl" style={{display:'none'}} onClick={(e)=>{if(e.target===document.getElementById('zoneMgrOvl'))document.getElementById('zoneMgrOvl').style.display='none'}}>
-        <div className="modal" style={{maxWidth:'400px'}}>
-          <div className="mhdr"><h2>📍 จัดการโซน</h2><button className="close-btn" onClick={()=>document.getElementById('zoneMgrOvl').style.display='none'}>✕</button></div>
-          <div className="mbody">
-            <div id="zoneMgrList" style={{display:'flex',flexDirection:'column',gap:'8px',marginBottom:'12px'}}></div>
-            <button className="add-btn" style={{width:'100%'}} onClick={()=>window.openZoneEdit(null)}>＋ เพิ่มโซนใหม่</button>
-          </div>
-        </div>
-      </div>
-      {/* ZONE EDIT */}
-      <div className="ovl" id="zEditOvl" style={{display:'none'}} onClick={(e)=>{if(e.target===document.getElementById('zEditOvl'))document.getElementById('zEditOvl').style.display='none'}}>
-        <div className="modal" style={{maxWidth:'360px'}}>
-          <div className="mhdr"><h2>✏️ แก้ไขโซน</h2><button className="close-btn" onClick={()=>document.getElementById('zEditOvl').style.display='none'}>✕</button></div>
-          <div className="mbody">
-            <div className="ef full"><label>ชื่อโซน *</label><input id="zNameInput" placeholder="เช่น ห้องครัว" /></div>
-            <div className="ef full"><label>ไอคอน</label><input id="zIconInput" placeholder="🍳" maxLength={2} style={{fontSize:'24px',textAlign:'center'}} /></div>
-            <div className="ef full"><label>สี</label><div id="zColorWrap" style={{display:'flex',gap:'8px',flexWrap:'wrap',marginTop:'6px'}}></div></div>
-          </div>
-          <div className="mftr"><button className="mbtn mbtn-g" onClick={()=>window.saveZone()}>💾 บันทึก</button></div>
-        </div>
-      </div>
     </>
   )
 }
