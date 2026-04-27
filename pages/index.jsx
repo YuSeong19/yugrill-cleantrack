@@ -179,7 +179,7 @@ function tCard(t,i){
     <div class="tinfo">
       <div class="tname">\${t.name}</div>
       <div class="tmeta">
-        <span class="tag \${t.zone==='ครัว'?'tz-kitchen':'tz-front'}">\${t.zone==='ครัว' ? '🍳 ครัว' : t.zone==='ล้างจาน' ? '🧽 ล้างจาน' : '🏠 หน้าบ้าน'}</span>
+        <span class="tag \${t.zone==='ครัว'?'tz-kitchen':'tz-front'}">\${t.zone==='ครัว'?'🍳 ครัว':t.zone==='ล้างจาน'?'🧽 ล้างจาน':'🏠 หน้าบ้าน'}</span>
         <span class="tag \${t.shift==='am'?'tf':'tf-pm'}">\${t.freq}</span>
       </div>
       \${noteEl}\${warnEl}\${doneInfo}\${strip}
@@ -237,7 +237,7 @@ function renderTasks(){
   });
 }
 function mgrCard(t,i){
-  const zLabel=t.zone==='ครัว' ? '🍳 ครัว' : t.zone==='ล้างจาน' ? '🧽 ล้างจาน' : '🏠 หน้าบ้าน';
+  const zLabel=t.zone==='ครัว'?'🍳 ครัว':t.zone==='ล้างจาน'?'🧽 ล้างจาน':'🏠 หน้าบ้าน';
   return\`<div class="mgr-card" style="animation-delay:\${i*.04}s">
     <div class="mgr-card-info">
       <div class="mgr-card-name">\${t.name}</div>
@@ -572,7 +572,7 @@ function hCard(h,hi){
     <div class="hcard-top">
       <div class="hcard-info">
         <div class="hcard-name">\${h.name}</div>
-        <div class="hcard-meta">\${h.zone==='ครัว'?'🍳 ครัว':'🏠 หน้าบ้าน'} · \${h.shift==='am'?'🌅 เช้า':'🌙 เย็น'}<br>\${s.emo} \${s.name} · 🕐 \${h.time}\${h.dateStr?' · '+h.dateStr:''}</div>
+        <div class="hcard-meta">\${h.zone==='ครัว'?'🍳 ครัว':t.zone==='ล้างจาน'?'🧽 ล้างจาน':'🏠 หน้าบ้าน'} · \${h.shift==='am'?'🌅 เช้า':'🌙 เย็น'}<br>\${s.emo} \${s.name} · 🕐 \${h.time}\${h.dateStr?' · '+h.dateStr:''}</div>
       </div>
       <div class="hbadge">✅ เสร็จ</div>
     </div>
