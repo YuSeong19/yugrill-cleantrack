@@ -114,8 +114,10 @@ function init(){
   document.getElementById('datechip').textContent=fmtDate(new Date());
   document.getElementById('themeBtn').textContent='🌙';
   renderZoneSeg();
+  renderToday();
+  renderStaff();
   goTab('today');
-  // renderToday() will be called by Firebase onValue callback once data arrives
+  // Firebase will call renderToday again with real data once connected
 }
 
 // ─── TABS ───
@@ -209,30 +211,38 @@ function renderToday(){
 }
 
 function tCard(t,i){
-  const isWarn=!t.done;
-  const noteEl=t.note?\`<div class="tnote">📝 \${t.note}</div>\`:'';
-  const strip=t.photos.length?\`<div class="photo-strip">\${t.photos.slice(0,3).map((p,pi)=>\`<img src="\${p}" onclick="openLB(\${t.id},\${pi})">\`).join('')}\${t.photos.length>3?\`<div class="more-ph">+\${t.photos.length-3}</div>\`:''}</div>\`:'';
-  const doneInfo=isDone&&t.doneBy?\`<div class="done-info"><div class="dot"></div>ทำโดย \${(getStaff(t.doneBy)||{name:t.doneBy}).name} · \${t.doneAt} · 📸 \${t.photos.length} รูป</div>\`:'';
-  const warnEl=isWarn?\`<div><span class="warn-badge">⚠️ ยังไม่เสร็จ</span></div>\`:'';
+  const st=taskStatus(t);
+  const isOverdue=st==='overdue';
+  const isDone=st==='done';
+  const isWarn=!isDone;
+  const zObj=getZoneByName(t.zone);
+  const zIcon=zObj?zObj.icon:'📍';
+  const zId=zObj?zObj.id:'other';
+  const overdueTag=isOverdue?\`<div class=\"overdue-tag\">⚠️ ไม่ได้ทำตามกำหนด</div>\`:'';
+  const noteEl=t.note?\`<div class=\"tnote\">📝 \${t.note}</div>\`:'';
+  const strip=t.photos&&t.photos.length?\`<div class=\"photo-strip\">\${t.photos.slice(0,3).map((p,pi)=>\`<img src=\"\${p}\" onclick=\"openLB(\${t.id},\${pi})\">\`).join('')}\${t.photos.length>3?\`<div class=\"more-ph\">+\${t.photos.length-3}</div>\`:''}</div>\`:'';
+  const doneInfo=isDone&&t.doneBy?\`<div class=\"done-info\"><div class=\"dot\"></div>ทำโดย \${(getStaff(t.doneBy)||{name:t.doneBy}).name} · \${t.doneAt} · 📸 \${t.photos?t.photos.length:0} รูป</div>\`:'';
+  const warnEl=isWarn&&!isOverdue?\`<div><span class=\"warn-badge\">⚠️ ยังไม่เสร็จ</span></div>\`:'';
   const btn=!isDone
-    ?\`<button class="ci-btn\${isWarn?' ci-btn-warn':''}" onclick="openCI(\${t.id})">📷 เช็คอิน</button>\`
-    :\`<button class="undo-btn" onclick="undoTask(\${t.id})">↩ ยกเลิก</button>\`;
-  const accentColor=isDone?'var(--green)':isOverdue?'var(--orange)':isWarn?'var(--red)':'transparent';
-  return\`<div class="tcard\${t.done?' done':''}\${isWarn?' tcard-warn':''}" style="animation-delay:\${i*.04}s">
-    <div class="tcard-accent" style="background:\${accentColor}"></div>
-    <div class="tinfo">
-      <div class="tname">\${t.name}</div>
-      <div class="tmeta">
-        <span class="tag \${t.zone==='ครัว'?'tz-kitchen':'tz-front'}">\${t.zone==='ครัว'?'🍳 ครัว':'🏠 หน้าบ้าน'}</span>
-        <span class="tag \${t.shift==='am'?'tf':'tf-pm'}">\${t.freq}</span>
+    ?\`<button class=\"ci-btn\${isWarn?' ci-btn-warn':''}\" onclick=\"openCI(\${t.id})\">📷 เช็คอิน</button>\`
+    :\`<button class=\"undo-btn\" onclick=\"undoTask(\${t.id})\">↩ ยกเลิก</button>\`;
+  const accentColor=isDone?'var(--green)':isOverdue?'var(--orange,#f97316)':isWarn?'var(--red)':'transparent';
+  return\`<div class=\"tcard\${isDone?' done':''}\${isOverdue?' tcard-overdue':isWarn?' tcard-warn':''}\" style=\"animation-delay:\${i*.04}s\">
+    \${overdueTag}
+    <div class=\"tcard-accent\" style=\"background:\${accentColor}\"></div>
+    <div class=\"tinfo\">
+      <div class=\"tname\">\${t.name}</div>
+      <div class=\"tmeta\">
+        <span class=\"tag tz-\${zId}\">\${zIcon} \${t.zone}</span>
+        <span class=\"tag \${t.shift==='am'?'tf':'tf-pm'}\">\${t.freq}</span>
       </div>
-      \${noteEl}\${warnEl}\${doneInfo}\${strip}
-      <div class="tacts" style="margin-top:8px">
-        <button class="tact ea" onclick="openEditModal(\${t.id})">✏️ แก้ไข</button>
-        <button class="tact da" onclick="confirmDelTask(\${t.id})">🗑 ลบ</button>
+      \${noteEl}\${overdueTag===''?warnEl:''}\${doneInfo}\${strip}
+      <div class=\"tacts\" style=\"margin-top:8px\">
+        <button class=\"tact ea\" onclick=\"openEditModal(\${t.id})\">✏️ แก้ไข</button>
+        <button class=\"tact da\" onclick=\"confirmDelTask(\${t.id})\">🗑 ลบ</button>
       </div>
     </div>
-    <div class="tright">\${btn}</div>
+    <div class=\"tright\">\${btn}</div>
   </div>\`;
 }
 
