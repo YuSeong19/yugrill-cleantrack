@@ -13,13 +13,6 @@ window.staff = [
   {id:'s4',name:'ต้อม',emo:'👨',role:'ผู้ช่วยครัว'},
   {id:'s5',name:'เจ',  emo:'👩',role:'พนักงานทำความสะอาด'},
 ];
-const ROLE_ZONES = {
-  'พนักงานเสิร์ฟ': ['โถงอาหาร'],
-  'ผู้ช่วยครัว': ['ครัว'],
-  'พนักงานทำความสะอาด': ['ล้างจาน'],
-  'หัวหน้าพนักงาน': ['all']
-};
-
 window.tasks = [
   {id:1, name:'ล้างพื้นครัว',         zone:'ครัว',      shift:'am',freq:'ทุกวัน',        note:'ใช้น้ำยาฆ่าเชื้อทุกครั้ง',done:false,photos:[],doneBy:null,doneAt:null},
   {id:2, name:'เช็ดโต๊ะอาหารทุกตัว',  zone:'โถงอาหาร', shift:'am',freq:'ทุกวัน',        note:'',done:false,photos:[],doneBy:null,doneAt:null},
@@ -35,7 +28,7 @@ window.tasks = [
 const TEMPLATES = [
   {icon:'🧹',name:'กวาดพื้น',            zone:'โถงอาหาร',shift:'am',freq:'ทุกวัน',        note:''},
   {icon:'🪣',name:'ถูพื้น',              zone:'โถงอาหาร',shift:'am',freq:'ทุกวัน',        note:''},
-  {icon:'🍽️',name:'ล้างจาน',            zone:'ล้างจาน',     shift:'am',freq:'ทุกวัน',        note:''},
+  {icon:'🍽️',name:'ล้างจาน',            zone:'ครัว',     shift:'am',freq:'ทุกวัน',        note:''},
   {icon:'🚿',name:'ล้างพื้นครัว',        zone:'ครัว',     shift:'am',freq:'ทุกวัน',        note:'ใช้น้ำยาฆ่าเชื้อ'},
   {icon:'🪟',name:'เช็ดกระจก',           zone:'โถงอาหาร',shift:'pm',freq:'ทุกสัปดาห์',   note:''},
   {icon:'🚽',name:'ทำความสะอาดห้องน้ำ',  zone:'โถงอาหาร',shift:'am',freq:'ทุกวัน',        note:'เช็ดพื้นและอ่าง'},
@@ -49,10 +42,9 @@ const TEMPLATES = [
   {icon:'🌬️',name:'ล้างเครื่องปรับอากาศ',zone:'โถงอาหาร',shift:'pm',freq:'ทุกเดือน',    note:''},
   {icon:'🔆',name:'เช็ดโคมไฟ',          zone:'โถงอาหาร',shift:'pm',freq:'ทุกเดือน',      note:''},
   {icon:'📦',name:'จัดเรียงของในคลัง',  zone:'ครัว',     shift:'pm',freq:'ทุกสัปดาห์',   note:''},
-  {icon:'🧊',name:'ล้างถาดน้ำแข็ง',    zone:'ล้างจาน',     shift:'am',freq:'ทุกวัน',        note:''},
+  {icon:'🧊',name:'ล้างถาดน้ำแข็ง',    zone:'ครัว',     shift:'am',freq:'ทุกวัน',        note:''},
   {icon:'🚪',name:'เช็ดประตูทางเข้า',   zone:'โถงอาหาร',shift:'am',freq:'ทุกวัน',        note:''},
 ];
-  {icon:'🧽',name:'ล้างอุปกรณ์', zone:'ล้างจาน', shift:'pm',freq:'ทุกวัน', note:''},
 const EMOJIS=['👩','👨','🧑','👩‍🍳','👨‍🍳','🧑‍🍳','👩‍💼','👨‍💼','🧹','⭐','🌟','💪','😊','🐱','🐶','🦊','🌸','⚡'];
 const FREQ_ORDER=['ทุกวัน','ทุก 3 วัน','ทุกสัปดาห์','ทุก 2 สัปดาห์','ทุกเดือน'];
 const ZONE_GROUPS={ front:['โถงอาหาร'], kitchen:['ครัว'] };
@@ -100,20 +92,9 @@ function goTab(t){
 }
 
 // ─── FILTER HELPERS ───
-function getCurrentUserZones(){
-  const s = window.staff.find(x => x.id === seId);
-  if(!s) return ['all'];
-  return ROLE_ZONES[s.role] || ['all'];
-}
-
 function matchFilter(t){
-  const userZones = getCurrentUserZones();
-  if(!userZones.includes('all') && !userZones.includes(t.zone)){
-    return false;
-  }
   if(alertZoneFilter==='front'   && !ZONE_GROUPS.front.includes(t.zone))   return false;
   if(alertZoneFilter==='kitchen' && !ZONE_GROUPS.kitchen.includes(t.zone)) return false;
-  if(alertZoneFilter==='dish' && !ZONE_GROUPS.dish.includes(t.zone)) return false;
   if(alertFreqFilter!=='all'){
     const cutoff=FREQ_ORDER.indexOf(alertFreqFilter);
     const tidx=FREQ_ORDER.indexOf(t.freq);
