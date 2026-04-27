@@ -1,6 +1,6 @@
-# CleanTrack 🍽️
+# YuGrill 🍽️
 
-ระบบจัดการทำความสะอาดร้านอาหาร — Next.js + Firebase Realtime Database
+ระบบจัดการร้านอาหาร YuGrill — Next.js + Firebase Realtime Database
 
 ## Deploy บน Vercel
 
@@ -21,7 +21,6 @@ npm run dev
 ## Firebase
 
 - Database: `cleantrack-restaurant-default-rtdb.asia-southeast1`
-- PIN เริ่มต้น: `1234` (แก้ที่ `const APP_PIN` ใน `pages/index.jsx`)
 
 ## Rules ที่ควรตั้งใน Firebase
 
