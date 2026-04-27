@@ -110,10 +110,12 @@ function isSameDay(a,b){return a.getFullYear()===b.getFullYear()&&a.getMonth()==
 
 // ─── INIT ───
 function init(){
-  document.documentElement.classList.remove('dark'); // force light mode always
+  document.documentElement.classList.remove('dark');
   document.getElementById('datechip').textContent=fmtDate(new Date());
   document.getElementById('themeBtn').textContent='🌙';
-  renderToday();
+  renderZoneSeg();
+  goTab('today');
+  // renderToday() will be called by Firebase onValue callback once data arrives
 }
 
 // ─── TABS ───
@@ -183,7 +185,7 @@ function setTaskView(v){
 
 // ─── RENDER TODAY ───
 function renderToday(){
-  applyFreqReset();
+  if(window.fbReady) applyFreqReset();
   ['am','pm'].forEach(sh=>{
     const all=window.tasks.filter(t=>t.shift===sh);
     const list=all.filter(matchFilter);
@@ -912,6 +914,17 @@ function connectDB(){
         photos: h.photos ? Object.values(h.photos) : [],
       })).sort((a,b)=>b.ts-a.ts);
       if(window.curTab==='history') renderHist();
+    }
+  });
+
+  // SYNC zones
+  onValue(ref(db,'zones'), snap => {
+    if(syncing) return;
+    const data = snap.val();
+    if(data){
+      window.zones = Object.values(data);
+      if(window.renderZoneSeg) renderZoneSeg();
+      renderToday();
     }
   });
 
