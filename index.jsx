@@ -220,7 +220,7 @@ function tCard(t,i){
     <div class="tinfo">
       <div class="tname">\${t.name}</div>
       <div class="tmeta">
-        <span class="tag \${t.zone==='ครัว'?'tz-kitchen':'tz-front'}">\${t.zone==='ครัว'?'🍳 ครัว':'🏠 หน้าบ้าน'}</span>
+        <span class="tag \${t.zone==='ครัว'?'tz-kitchen':'tz-front'}">\${t.zone==='ครัว' ? '🍳 ครัว' : t.zone==='ล้างจาน' ? '🧽 ล้างจาน' : '🏠 หน้าบ้าน'}</span>
         <span class="tag \${t.shift==='am'?'tf':'tf-pm'}">\${t.freq}</span>
       </div>
       \${noteEl}\${warnEl}\${doneInfo}\${strip}
@@ -278,7 +278,7 @@ function renderTasks(){
   });
 }
 function mgrCard(t,i){
-  const zLabel=t.zone==='ครัว'?'🍳 ครัว':'🏠 หน้าบ้าน';
+  const zLabel=t.zone==='ครัว' ? '🍳 ครัว' : t.zone==='ล้างจาน' ? '🧽 ล้างจาน' : '🏠 หน้าบ้าน';
   return\`<div class="mgr-card" style="animation-delay:\${i*.04}s">
     <div class="mgr-card-info">
       <div class="mgr-card-name">\${t.name}</div>
