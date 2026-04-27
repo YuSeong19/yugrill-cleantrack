@@ -54,6 +54,32 @@ window.zones = [
 function getZone(id){ return window.zones.find(z=>z.id===id)||{id,name:id,icon:'📍',color:'blue'}; }
 function getZoneByName(name){ return window.zones.find(z=>z.name===name)||null; }
 
+
+// ─── COMPRESS PHOTO ───
+function compressPhoto(file, cb){
+  var MAX=800, QUALITY=0.55;
+  var img=new Image();
+  var url=URL.createObjectURL(file);
+  img.onload=function(){
+    URL.revokeObjectURL(url);
+    var w=img.width,h=img.height;
+    if(w>h){ if(w>MAX){h=Math.round(h*MAX/w);w=MAX;} }
+    else    { if(h>MAX){w=Math.round(w*MAX/h);h=MAX;} }
+    var canvas=document.createElement('canvas');
+    canvas.width=w; canvas.height=h;
+    var ctx=canvas.getContext('2d');
+    ctx.drawImage(img,0,0,w,h);
+    cb(canvas.toDataURL('image/jpeg',QUALITY));
+  };
+  img.onerror=function(){
+    // fallback: read as-is but still compress via canvas
+    var r=new FileReader();
+    r.onload=function(ev){ cb(ev.target.result); };
+    r.readAsDataURL(file);
+  };
+  img.src=url;
+}
+
 // ─── FREQUENCY RESET ───
 function freqToDays(freq){
   if(freq==='ทุกวัน')         return 1;
@@ -80,6 +106,7 @@ function applyFreqReset(){
     var st=taskStatus(t);
     if((st==='due'||st==='overdue')&&t.done){
       t.done=false;t.photos=[];t.doneBy=null;t.doneAt=null;t.doneDate=null;
+    if(window.fbSavePhotos) window.fbSavePhotos(t.id,[]);
       changed=true;
     }
   });
@@ -373,14 +400,13 @@ function eDelPhoto(i){
 function eAddPhotos(e){
   const t=window.tasks.find(x=>x.id===eId);if(!t)return;
   const files=Array.from(e.target.files);if(!files.length)return;
+  if(t.photos.length+files.length>5){alert('อัพโหลดได้สูงสุด 5 รูป');e.target.value='';return;}
   let n=0;
   files.forEach(f=>{
-    const r=new FileReader();
-    r.onload=ev=>{
-      t.photos.push(ev.target.result);
-      if(++n===files.length){ renderEditPhotos(t); renderToday(); }
-    };
-    r.readAsDataURL(f);
+    compressPhoto(f, function(dataUrl){
+      t.photos.push(dataUrl);
+      if(++n===files.length){ renderEditPhotos(t); renderToday(); if(window.fbSavePhotos) window.fbSavePhotos(t.id,t.photos); }
+    });
   });
   e.target.value='';
 }
@@ -521,8 +547,9 @@ function ciToggle(id){
 }
 function ciAddPh(e){
   const files=Array.from(e.target.files);if(!files.length) return;
+  if(ci.photos.length+files.length>5){alert('อัพโหลดได้สูงสุด 5 รูป');e.target.value='';return;}
   let n=0;
-  files.forEach(f=>{const r=new FileReader();r.onload=ev=>{ci.photos.push(ev.target.result);if(++n===files.length)renderCI();};r.readAsDataURL(f);});
+  files.forEach(f=>{compressPhoto(f,function(dataUrl){ci.photos.push(dataUrl);if(++n===files.length)renderCI();});});
 }
 function ciDelPh(i){ci.photos.splice(i,1);renderCI();}
 function commitCI(){
@@ -533,6 +560,7 @@ function commitCI(){
   ci.taskIds.forEach(id=>{
     const t=window.tasks.find(x=>x.id===id);if(!t)return;
     t.done=true;t.doneBy=ci.staff;t.doneAt=ts;t.doneDate=ci.date;t.photos=[...ci.photos];
+    if(window.fbSavePhotos) window.fbSavePhotos(id, ci.photos);
     window.hist.unshift({name:t.name,zone:t.zone,shift:t.shift,who:ci.staff,time:ts,ts:dateObj,dateStr:fmtDateFull(dateObj),photos:[...ci.photos]});
   });
   closeModal('ciOvl');renderToday();
@@ -545,6 +573,7 @@ function undoTask(id){
   showConfirm(\`ยกเลิกงาน "\${t.name}"?\`,()=>{
     window.hist=window.hist.filter(h=>!(h.name===t.name&&h.who===t.doneBy&&h.time===t.doneAt));
     t.done=false;t.photos=[];t.doneBy=null;t.doneAt=null;t.doneDate=null;
+    if(window.fbSavePhotos) window.fbSavePhotos(t.id,[]);
     renderToday();if(window.curTab==='history') renderHist();
     if(window.fbSaveTasks) fbSaveTasks();
     if(window.fbSaveHist) fbSaveHist();
@@ -886,17 +915,44 @@ function connectDB(){
     if(syncing) return;
     const data = snap.val();
     if(data){
-      window.tasks = objToArr(data).map(t=>({
-        ...t,
-        photos: t.photos ? Object.values(t.photos) : [],
-        done: t.done ?? false, doneBy: t.doneBy ?? null, doneAt: t.doneAt ?? null, doneDate: t.doneDate ?? null,
-      }));
+      // Migrate old photos (base64 in tasks node) → /photos node
+      const needsMigration = [];
+      window.tasks = objToArr(data).map(t=>{
+        const oldPhotos = t.photos ? Object.values(t.photos) : [];
+        if(oldPhotos.length > 0) needsMigration.push({id:t.id, photos:oldPhotos});
+        const {photos,...rest} = t;
+        return {...rest, photos:oldPhotos,
+          done: t.done ?? false, doneBy: t.doneBy ?? null, doneAt: t.doneAt ?? null, doneDate: t.doneDate ?? null};
+      });
+      // Move old photos to /photos node and clear from tasks
+      if(needsMigration.length){
+        needsMigration.forEach(({id,photos})=>{
+          const obj={}; photos.forEach((p,i)=>{obj['p'+i]=p;});
+          set(ref(db,'photos/'+id), obj);
+        });
+        // Clear photos from tasks node
+        setTimeout(()=>{ if(window.fbSaveTasks) window.fbSaveTasks(); }, 500);
+      }
       renderToday();
       if(window.curTab==='tasks') renderTasks();
     }
     window.fbReady=true;
     setStatus(true);
   }, err=>{ setStatus(false); console.error(err); });
+
+  // SYNC photos separately (large data, separate node)
+  onValue(ref(db,'photos'), snap => {
+    if(syncing) return;
+    const data = snap.val();
+    if(data){
+      window.tasks.forEach(t=>{
+        const ph=data[t.id];
+        t.photos = ph ? Object.values(ph) : [];
+      });
+      renderToday();
+      if(window.curTab==='tasks') renderTasks();
+    }
+  });
 
   // SYNC staff
   onValue(ref(db,'staff'), snap => {
@@ -975,7 +1031,7 @@ function connectDB(){
   onValue(ref(db,'tasks'), snap=>{
     window.fbReady=true;
     if(!snap.exists()){
-      var _t={}; window.tasks.forEach(function(x){_t[x.id]={...x,photos:{}};});
+      var _t={}; window.tasks.forEach(function(x){const {photos,...rest}=x;_t[x.id]=rest;});
       set(ref(db,'tasks'),_t);
       var _s={}; window.staff.forEach(function(x){_s[x.id]=x;});
       set(ref(db,'staff'),_s);
