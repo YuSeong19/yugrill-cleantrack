@@ -520,7 +520,7 @@ function renderCI(){
     document.getElementById('ciSub').textContent=\`\${(getStaff(ci.staff)||{name:''}).name} — เลือกได้หลายงาน\`;
     bb.style.display='';nb.textContent='ถัดไป →';nb.disabled=ci.taskIds.length===0;
     const rowH=t=>{
-      const sel=ci.taskIds.includes(t.id),dis=t.done;
+      const sel=ci.taskIds.includes(t.id),dis=false; // อนุญาตให้เลือกงานซ้ำได้ (ทำหลายรอบ/หลายคน)
       return\`<div class="tsel\${sel?' on':''}\${dis?' dis':''}" onclick="\${dis?'':\` ciToggle(\${t.id})\`}">
         <div class="chk">\${sel?'✓':''}</div>
         <div class="tsel-info">
@@ -582,13 +582,20 @@ function commitCI(){
   const dateObj=new Date(now);
   ci.taskIds.forEach(id=>{
     const t=window.tasks.find(x=>x.id===id);if(!t)return;
-    t.done=true;t.doneBy=ci.staff;t.doneAt=ts;t.doneDate=ci.date;t.photos=[...ci.photos];
+    // อัพเดตสถานะงาน (ทำซ้ำได้ — เพิ่มรูปล่าสุดทับ)
+    t.done=true;t.doneBy=ci.staff;t.doneAt=ts;t.doneDate=ci.date;
+    // เพิ่มรูปใหม่เข้าไป (ไม่ทับรูปเก่า, สูงสุด 10 รูป)
+    ci.photos.forEach(p=>{ if(t.photos.length<10) t.photos.push(p); });
     window.hist.unshift({name:t.name,zone:t.zone,shift:t.shift,who:ci.staff,time:ts,ts:dateObj,dateStr:fmtDateFull(dateObj),photos:[...ci.photos]});
   });
-  closeModal('ciOvl');renderToday();
+  closeModal('ciOvl');
+  // Reset ci object ให้พร้อมสำหรับครั้งต่อไป
+  ci={step:1,staff:ci.staff,taskIds:[],photos:[],date:todayStr}; // เก็บ staff ไว้ (สะดวกถ้าคนเดิมทำต่อ)
+  renderToday();
   if(window.curTab==='history') renderHist();
   if(window.fbSaveTasks) fbSaveTasks();
   if(window.fbSaveHist) fbSaveHist();
+  showToast('✅ บันทึกเรียบร้อย!');
 }
 function undoTask(id){
   const t=window.tasks.find(x=>x.id===id);if(!t)return;
@@ -946,7 +953,7 @@ function connectDB(){
     <>
       <Head>
         <meta charSet="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover" />
         <title>YuGrill</title>
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
@@ -1082,7 +1089,7 @@ html.dark {
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-tap-highlight-color: transparent; background: var(--bg); transition: background .25s, color .25s; }
-body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-serif; min-height: 100vh; padding-bottom: 80px; transition: background .25s, color .25s; }
+body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-serif; min-height: 100vh; padding-bottom: calc(60px + max(env(safe-area-inset-bottom), 8px)); transition: background .25s, color .25s; }
 .hdr, .tabs, .tab, .bnav, .bni, .card, .stat, .prog-box, .filter-block,
 .tcard, .mgr-card, .hcard, .sc, .mbox, .period-nav,
 .fchip, .schip, .tsel, .ef input, .ef select, .ef textarea {
@@ -1096,9 +1103,11 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 .hdr {
   background: var(--white);
   border-bottom: 1px solid var(--border);
-  padding: 0 16px;
+  padding: env(safe-area-inset-top) 16px 0;
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
   position: sticky; top: 0; z-index: 300;
-  display: flex; align-items: center; gap: 12px; height: 56px;
+  display: flex; align-items: center; gap: 12px; min-height: 56px;
   box-shadow: var(--shadow);
 }
 .logo { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; box-shadow: 0 2px 8px rgba(139,26,26,.3); }
@@ -1108,8 +1117,18 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 .date-pill { background: var(--blue-lt); color: var(--blue); border-radius: 99px; padding: 4px 12px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 
 /* ─── BOTTOM NAV ─── */
-.bnav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--white); border-top: 1px solid var(--border); display: flex; z-index: 300; box-shadow: 0 -2px 12px rgba(0,0,0,.06); }
-.bni { flex: 1; padding: 8px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; font-size: 10px; font-weight: 600; color: var(--dim); transition: color .2s; }
+.bnav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: var(--white);
+  border-top: 1px solid var(--border);
+  display: flex;
+  z-index: 300;
+  box-shadow: 0 -2px 12px rgba(0,0,0,.06);
+  padding-bottom: max(env(safe-area-inset-bottom), 8px);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+.bni { flex: 1; padding: 10px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; font-size: 10px; font-weight: 600; color: var(--dim); transition: color .2s; min-height: 44px; -webkit-tap-highlight-color: transparent; }
 .bni .ic { font-size: 20px; }
 .bni.on { color: var(--green); }
 @media(min-width:641px) { .bnav { display: none; } }
@@ -1319,7 +1338,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 /* ─── MODALS ─── */
 @keyframes fo { from{opacity:0} to{opacity:1} }
 @keyframes su { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:none} }
-.ovl { position: fixed; inset: 0; background: rgba(0,0,0,.45); backdrop-filter: blur(4px); z-index: 400; display: flex; align-items: flex-end; justify-content: center; animation: fo .2s ease; }
+.ovl { position: fixed; inset: 0; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; background: rgba(0,0,0,.45); backdrop-filter: blur(4px); z-index: 400; display: flex; align-items: flex-end; justify-content: center; animation: fo .2s ease; }
 @media(min-width:600px) { .ovl { align-items: center; padding: 20px; } }
 .mbox { background: var(--white); border-radius: 22px 22px 0 0; width: 100%; max-width: 500px; display: flex; flex-direction: column; max-height: 93vh; overflow: hidden; animation: su .22s ease; box-shadow: var(--shadow-lg); }
 @media(min-width:600px) { .mbox { border-radius: 22px; } }
@@ -1395,6 +1414,45 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 .tpl-card .tpl-icon { font-size: 24px; margin-bottom: 6px; }
 .tpl-card .tpl-name { font-size: 12px; font-weight: 700; color: var(--text2); line-height: 1.3; }
 .tpl-card .tpl-zone { font-size: 10px; color: var(--sub); margin-top: 3px; }
+.ci-done-badge { font-size: 10px; color: var(--green); margin-left: 4px; }
+.ci-task.sel { background: var(--green-lt) !important; border-color: var(--green) !important; }
+
+
+/* ── MOBILE IMPROVEMENTS ── */
+/* Safe area สำหรับ iPhone notch/home indicator */
+.page-wrap { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+
+/* Touch targets */
+.fchip { min-height: 34px; display: flex; align-items: center; }
+.ci-btn, .undo-btn { min-height: 40px; }
+.mbtn { min-height: 48px; }
+
+/* ป้องกัน layout ค้าง: ไม่ให้มี horizontal scroll */
+#tab-today, #tab-tasks, #tab-staff, #tab-history { overflow-x: hidden; }
+.tasklist, .mgr-list, .hist-list, .side-alert-list {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+* { -webkit-tap-highlight-color: transparent; }
+html { overscroll-behavior-y: none; }
+
+
+/* Today 2-col: บนมือถือแคบให้กว้างเต็ม */
+@media (max-width: 700px) {
+  .today-cols { display: flex; flex-direction: column; gap: 10px; }
+  .today-side { position: static; max-height: 220px; overflow: hidden; }
+  .today-side.expanded { max-height: none; }
+  .side-alert-list { max-height: 160px; }
+}
+
+/* Prevent content from being hidden under header */
+.page-content { padding-top: 8px; }
+
+/* Big CI button mobile */
+@media (max-width: 500px) {
+  .big-ci-btn { padding: 14px 16px; }
+}
+
 
 /* ── TODAY 2-COLUMN LAYOUT ── */
 .today-cols {
