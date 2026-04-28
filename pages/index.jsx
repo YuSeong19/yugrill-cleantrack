@@ -149,8 +149,8 @@ function deadlineLabel(freq){
   return '';
 }
 
+let _freqResetTimer=null;
 function applyFreqReset(){
-  // เรียกก่อน render — reset tasks ที่ถึงรอบใหม่
   let changed=false;
   window.tasks.forEach(t=>{
     if(taskShouldReset(t)){
@@ -158,7 +158,11 @@ function applyFreqReset(){
       changed=true;
     }
   });
-  if(changed && window.fbSaveTasks) window.fbSaveTasks();
+  // debounce save — ไม่ส่งทุกครั้งที่ render
+  if(changed && window.fbSaveTasks){
+    clearTimeout(_freqResetTimer);
+    _freqResetTimer=setTimeout(()=>window.fbSaveTasks(), 2000);
+  }
 }
 
 const stampNow=()=>{const n=new Date();return\`\${n.getHours().toString().padStart(2,'0')}:\${n.getMinutes().toString().padStart(2,'0')} น.\`;};
@@ -186,9 +190,10 @@ function goTab(t){
     el.classList.toggle('on',['today','tasks','staff','history'][i]===t));
   document.querySelectorAll('.bni').forEach((el,i)=>
     el.classList.toggle('on',['today','tasks','staff','history'][i]===t));
-  if(t==='tasks') renderTasks();
-  if(t==='staff') renderStaff();
-  if(t==='history'){histOffset=0;runAutoDel();renderHist();}
+  // ใช้ requestAnimationFrame เพื่อให้ tab แสดงก่อน แล้วค่อย render
+  if(t==='tasks') requestAnimationFrame(renderTasks);
+  if(t==='staff') requestAnimationFrame(renderStaff);
+  if(t==='history') requestAnimationFrame(()=>{histOffset=0;runAutoDel();renderHist();});
 }
 
 // ─── FILTER HELPERS ───
@@ -242,8 +247,11 @@ function setTaskView(v){
 }
 
 // ─── RENDER TODAY ───
+let _lastResetDate='';
 function renderToday(){
-  applyFreqReset();
+  // applyFreqReset แค่วันละครั้ง
+  const todayKey=new Date().toISOString().slice(0,10);
+  if(todayKey!==_lastResetDate){ applyFreqReset(); _lastResetDate=todayKey; }
   ['am','pm'].forEach(sh=>{
     const all=window.tasks.filter(t=>t.shift===sh);
     const list=all.filter(matchFilter);
@@ -580,17 +588,28 @@ function commitCI(){
   const [y,m,d]=ci.date.split('-').map(Number);
   const now=new Date();now.setFullYear(y,m-1,d);
   const dateObj=new Date(now);
-  ci.taskIds.forEach(id=>{
+  // snapshot ก่อน reset
+  const savedStaff=ci.staff;
+  const savedPhotos=[...ci.photos]; // deep copy รูป
+  const savedTaskIds=[...ci.taskIds];
+  const savedDate=ci.date;
+  savedTaskIds.forEach(id=>{
     const t=window.tasks.find(x=>x.id===id);if(!t)return;
-    // อัพเดตสถานะงาน (ทำซ้ำได้ — เพิ่มรูปล่าสุดทับ)
-    t.done=true;t.doneBy=ci.staff;t.doneAt=ts;t.doneDate=ci.date;
+    t.done=true;t.doneBy=savedStaff;t.doneAt=ts;t.doneDate=savedDate;
     // เพิ่มรูปใหม่เข้าไป (ไม่ทับรูปเก่า, สูงสุด 10 รูป)
-    ci.photos.forEach(p=>{ if(t.photos.length<10) t.photos.push(p); });
-    window.hist.unshift({name:t.name,zone:t.zone,shift:t.shift,who:ci.staff,time:ts,ts:dateObj,dateStr:fmtDateFull(dateObj),photos:[...ci.photos]});
+    savedPhotos.forEach(p=>{ if(t.photos.length<10) t.photos.push(p); });
+    // hist ใช้ savedPhotos — deep copy แน่นอน
+    window.hist.unshift({
+      name:t.name,zone:t.zone,shift:t.shift,
+      who:savedStaff,time:ts,ts:dateObj,
+      dateStr:fmtDateFull(dateObj),
+      photos:[...savedPhotos]
+    });
   });
   closeModal('ciOvl');
-  // Reset ci object ให้พร้อมสำหรับครั้งต่อไป
-  ci={step:1,staff:ci.staff,taskIds:[],photos:[],date:todayStr}; // เก็บ staff ไว้ (สะดวกถ้าคนเดิมทำต่อ)
+  // Reset ci หลัง snapshot แล้ว
+  const todayStr=new Date().toISOString().slice(0,10);
+  ci={step:1,staff:savedStaff,taskIds:[],photos:[],date:todayStr};
   renderToday();
   if(window.curTab==='history') renderHist();
   if(window.fbSaveTasks) fbSaveTasks();
