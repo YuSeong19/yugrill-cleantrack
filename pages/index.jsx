@@ -57,7 +57,7 @@ let ci={step:1,staff:null,taskIds:[],photos:[],date:''};
 let selectedTpl=null,filteredTpls=[...TEMPLATES];
 let lbPhotos=[],lbIdx=0;
 let alertZoneFilter='all',alertFreqFilter='all';
-let todayView='list',taskView='list';
+let todayView='grid',taskView='grid';
 let confirmCb=null;
 
 const getStaff=id=>window.staff.find(s=>s.id===id);
@@ -768,6 +768,17 @@ document.addEventListener('keydown',e=>{
   if(e.key==='ArrowRight'&&document.getElementById('lb').style.display!=='none') lbMv(1);
 });
 
+
+function toggleSidePanel(btn){
+  const content=document.querySelector('.side-filters');
+  const list=document.getElementById('alert-banner');
+  const panel=btn.closest('.side-panel');
+  const collapsed=panel.classList.toggle('collapsed');
+  btn.textContent=collapsed?'+':'−';
+  if(content) content.style.display=collapsed?'none':'block';
+  if(list) list.style.display=collapsed?'none':'block';
+}
+
 // ─── THEME ───
 function toggleTheme(){
   const isDark = document.documentElement.classList.contains('dark');
@@ -1385,6 +1396,88 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 .tpl-card .tpl-name { font-size: 12px; font-weight: 700; color: var(--text2); line-height: 1.3; }
 .tpl-card .tpl-zone { font-size: 10px; color: var(--sub); margin-top: 3px; }
 
+/* ── TODAY 2-COLUMN LAYOUT ── */
+.today-cols {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 16px;
+  align-items: start;
+}
+.today-main { min-width: 0; }
+.today-side { position: sticky; top: 72px; }
+
+/* Side panel */
+.side-panel {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--rad);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.side-panel-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--amber-lt);
+  border-bottom: 1.5px solid var(--border);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--amber);
+  position: sticky;
+  top: 0;
+}
+.side-collapse-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--amber);
+  line-height: 1;
+  padding: 0 2px;
+  font-weight: 700;
+}
+.side-filters {
+  padding: 10px 12px 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.side-alert-list {
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+  padding: 8px;
+}
+/* Override alert-banner inside side panel */
+.side-alert-list .alert-banner {
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  box-shadow: none;
+}
+.side-alert-list .alert-item {
+  padding: 8px 10px;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.side-alert-list .ai-name { font-size: 12px; }
+.side-alert-list .ai-meta { font-size: 10px; }
+
+/* Mobile: stack vertically */
+@media (max-width: 700px) {
+  .today-cols {
+    grid-template-columns: 1fr;
+  }
+  .today-side {
+    position: static;
+    order: -1; /* side panel มาก่อนบนมือถือ */
+  }
+  .side-alert-list {
+    max-height: 200px;
+  }
+}
+
+
 /* ── OVERDUE & DEADLINE ── */
 .tcard-overdue { border-left: 3px solid var(--red); }
 .overdue-bar { font-size: 11px; font-weight: 700; color: #fff; background: var(--red); border-radius: 6px; padding: 3px 8px; margin-bottom: 6px; }
@@ -1436,6 +1529,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 
   <!-- ══ TODAY ══ -->
   <div id="tab-today">
+
+    <!-- ── TOP BAR: สถิติ + progress ── -->
     <div class="stat-grid">
       <div class="stat stat-done"><div class="n cg" id="s-done">0</div><div class="l" style="color:var(--green)">✅ เสร็จแล้ว</div></div>
       <div class="stat stat-pend"><div class="n co" id="s-pend">0</div><div class="l" style="color:var(--amber)">⏳ รอทำ</div></div>
@@ -1446,28 +1541,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
       <div class="prog-row"><span>ความคืบหน้าวันนี้</span><span class="prog-pct" id="pct">0%</span></div>
       <div class="bar"><div class="bar-in" id="bar" style="width:0%"></div></div>
     </div>
-    <!-- Filter block -->
-    <div class="filter-block">
-      <div class="filter-label">📍 โซน</div>
-      <div class="filter-row">
-        <div class="fchip on" id="afz-all"     onclick="setAlertZone('all')">ทั้งหมด</div>
-        <div class="fchip"    id="afz-front"    onclick="setAlertZone('front')">🏠 หน้าบ้าน</div>
-        <div class="fchip"    id="afz-kitchen"  onclick="setAlertZone('kitchen')">🍳 ครัว</div>
-        <div class="fchip"    id="afz-dishwash" onclick="setAlertZone('dishwash')">🫧 ล้างจาน</div>
-      </div>
-      <div class="filter-label">🔄 ความถี่</div>
-      <div class="filter-row">
-        <div class="fchip on" id="aff-all" onclick="setAlertFreq('all')">ทั้งหมด</div>
-        <div class="fchip"    id="aff-d1"  onclick="setAlertFreq('ทุกวัน')">ทุกวัน</div>
-        <div class="fchip"    id="aff-d3"  onclick="setAlertFreq('ทุก 3 วัน')">ทุก 3 วัน</div>
-        <div class="fchip"    id="aff-w1"  onclick="setAlertFreq('ทุกสัปดาห์')">ทุกสัปดาห์</div>
-        <div class="fchip"    id="aff-w2"  onclick="setAlertFreq('ทุก 2 สัปดาห์')">ทุก 2 สัปดาห์</div>
-        <div class="fchip"    id="aff-m1"  onclick="setAlertFreq('ทุกเดือน')">ทุกเดือน</div>
-      </div>
-    </div>
-    <!-- Alert -->
-    <div id="alert-banner"></div>
-    <!-- Big CTA -->
+
+    <!-- ── BIG CTA เช็คอิน ── -->
     <button class="big-ci-btn" onclick="openCI(null)">
       <div class="ci-icon">📷</div>
       <div>
@@ -1476,19 +1551,58 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
       </div>
       <div style="margin-left:auto;font-size:20px;opacity:.7">›</div>
     </button>
-    <!-- Task lists -->
-    <div class="shift-hdr">
-      <div class="shift-hdr-pill sh-am">🌅 เช้า <span class="shift-cnt" id="am-cnt">0/0</span></div>
-      <div class="vt-wrap">
-        <button class="vt-btn on" id="today-vt-list" onclick="setTodayView('list')" title="รายการ">☰</button>
-        <button class="vt-btn" id="today-vt-grid" onclick="setTodayView('grid')" title="กริด">⊞</button>
+
+    <!-- ── 2-COLUMN LAYOUT ── -->
+    <div class="today-cols">
+
+      <!-- LEFT: ตารางงานเช้า/เย็น -->
+      <div class="today-main">
+        <div class="shift-hdr">
+          <div class="shift-hdr-pill sh-am">🌅 เช้า <span class="shift-cnt" id="am-cnt">0/0</span></div>
+          <div class="vt-wrap">
+            <button class="vt-btn" id="today-vt-list" onclick="setTodayView('list')" title="รายการ">☰</button>
+            <button class="vt-btn on" id="today-vt-grid" onclick="setTodayView('grid')" title="กริด">⊞</button>
+          </div>
+        </div>
+        <div class="tasklist" id="am-list"></div>
+        <div class="shift-hdr" style="margin-top:16px">
+          <div class="shift-hdr-pill sh-pm">🌙 เย็น <span class="shift-cnt" id="pm-cnt">0/0</span></div>
+        </div>
+        <div class="tasklist" id="pm-list"></div>
       </div>
-    </div>
-    <div class="tasklist" id="am-list"></div>
-    <div class="shift-hdr" style="margin-top:20px">
-      <div class="shift-hdr-pill sh-pm">🌙 เย็น <span class="shift-cnt" id="pm-cnt">0/0</span></div>
-    </div>
-    <div class="tasklist" id="pm-list"></div>
+
+      <!-- RIGHT: งานยังไม่เสร็จ + filter -->
+      <div class="today-side">
+        <div class="side-panel">
+          <div class="side-panel-hdr">
+            <span>⚠️ ยังไม่เสร็จ</span>
+            <button class="side-collapse-btn" onclick="toggleSidePanel(this)" title="ซ่อน/แสดง">−</button>
+          </div>
+          <!-- Filter -->
+          <div class="side-filters">
+            <div class="filter-label" style="font-size:10px;margin-bottom:4px">📍 โซน</div>
+            <div class="filter-row" style="gap:4px">
+              <div class="fchip on" id="afz-all"     onclick="setAlertZone('all')" style="font-size:10px;padding:3px 8px">ทั้งหมด</div>
+              <div class="fchip"    id="afz-front"    onclick="setAlertZone('front')" style="font-size:10px;padding:3px 8px">🏠</div>
+              <div class="fchip"    id="afz-kitchen"  onclick="setAlertZone('kitchen')" style="font-size:10px;padding:3px 8px">🍳</div>
+              <div class="fchip"    id="afz-dishwash" onclick="setAlertZone('dishwash')" style="font-size:10px;padding:3px 8px">🫧</div>
+            </div>
+            <div class="filter-label" style="font-size:10px;margin:6px 0 4px">🔄 ความถี่</div>
+            <div class="filter-row" style="gap:4px">
+              <div class="fchip on" id="aff-all" onclick="setAlertFreq('all')" style="font-size:10px;padding:3px 8px">ทั้งหมด</div>
+              <div class="fchip"    id="aff-d1"  onclick="setAlertFreq('ทุกวัน')" style="font-size:10px;padding:3px 8px">ทุกวัน</div>
+              <div class="fchip"    id="aff-d3"  onclick="setAlertFreq('ทุก 3 วัน')" style="font-size:10px;padding:3px 8px">3 วัน</div>
+              <div class="fchip"    id="aff-w1"  onclick="setAlertFreq('ทุกสัปดาห์')" style="font-size:10px;padding:3px 8px">สัปดาห์</div>
+              <div class="fchip"    id="aff-w2"  onclick="setAlertFreq('ทุก 2 สัปดาห์')" style="font-size:10px;padding:3px 8px">2 สัปดาห์</div>
+              <div class="fchip"    id="aff-m1"  onclick="setAlertFreq('ทุกเดือน')" style="font-size:10px;padding:3px 8px">เดือน</div>
+            </div>
+          </div>
+          <!-- Alert list -->
+          <div id="alert-banner" class="side-alert-list"></div>
+        </div>
+      </div>
+
+    </div><!-- end today-cols -->
   </div>
 
   <!-- ══ TASKS ══ -->
@@ -1500,8 +1614,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
       </div>
       <div style="display:flex;gap:8px;align-items:center">
         <div class="vt-wrap">
-          <button class="vt-btn on" id="tasks-vt-list" onclick="setTaskView('list')">☰</button>
-          <button class="vt-btn" id="tasks-vt-grid" onclick="setTaskView('grid')">⊞</button>
+          <button class="vt-btn" id="tasks-vt-list" onclick="setTaskView('list')">☰</button>
+          <button class="vt-btn on" id="tasks-vt-grid" onclick="setTaskView('grid')">⊞</button>
         </div>
         <button class="add-btn" onclick="openAddModal()">
           <span>＋</span> เพิ่มงาน
