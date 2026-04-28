@@ -14,16 +14,16 @@ window.staff = [
   {id:'s5',name:'เจ',  emo:'👩',role:'พนักงานทำความสะอาด'},
 ];
 window.tasks = [
-  {id:1, name:'ล้างพื้นครัว',         zone:'ครัว',      shift:'am',freq:'ทุกวัน',        note:'ใช้น้ำยาฆ่าเชื้อทุกครั้ง',done:false,photos:[],doneBy:null,doneAt:null},
-  {id:2, name:'เช็ดโต๊ะอาหารทุกตัว',  zone:'โถงอาหาร', shift:'am',freq:'ทุกวัน',        note:'',done:false,photos:[],doneBy:null,doneAt:null},
-  {id:3, name:'ทำความสะอาดห้องน้ำ',    zone:'โถงอาหาร', shift:'am',freq:'ทุกวัน',        note:'เช็ดพื้น อ่าง และกระจก',done:false,photos:[],doneBy:null,doneAt:null},
-  {id:4, name:'เช็ดเคาน์เตอร์บริการ',  zone:'โถงอาหาร', shift:'am',freq:'ทุกวัน',        note:'',done:false,photos:[],doneBy:null,doneAt:null},
-  {id:5, name:'กวาดและถูพื้นโถงอาหาร', zone:'โถงอาหาร', shift:'am',freq:'ทุกวัน',        note:'',done:false,photos:[],doneBy:null,doneAt:null},
-  {id:6, name:'ล้างพื้นครัวก่อนปิด',   zone:'ครัว',      shift:'pm',freq:'ทุกวัน',        note:'',done:false,photos:[],doneBy:null,doneAt:null},
-  {id:7, name:'ล้างพื้นโถงอาหาร',      zone:'โถงอาหาร', shift:'pm',freq:'ทุกวัน',        note:'',done:false,photos:[],doneBy:null,doneAt:null},
-  {id:8, name:'เช็ดกระจกร้าน',        zone:'โถงอาหาร', shift:'pm',freq:'ทุกสัปดาห์',   note:'',done:false,photos:[],doneBy:null,doneAt:null},
-  {id:9, name:'ทำความสะอาดตู้เย็น',    zone:'ครัว',      shift:'pm',freq:'ทุก 2 สัปดาห์',note:'เช็ดทั้งด้านในและนอก',done:false,photos:[],doneBy:null,doneAt:null},
-  {id:10,name:'ล้างห้องน้ำรอบปิดร้าน', zone:'โถงอาหาร', shift:'pm',freq:'ทุกวัน',        note:'',done:false,photos:[],doneBy:null,doneAt:null},
+  {id:1, name:'ล้างพื้นครัว',         zone:'ครัว',      shift:'am',freq:'ทุกวัน',        note:'ใช้น้ำยาฆ่าเชื้อทุกครั้ง',done:false,photos:[],doneBy:null,doneAt:null,doneDate:null},
+  {id:2, name:'เช็ดโต๊ะอาหารทุกตัว',  zone:'โถงอาหาร', shift:'am',freq:'ทุกวัน',        note:'',done:false,photos:[],doneBy:null,doneAt:null,doneDate:null},
+  {id:3, name:'ทำความสะอาดห้องน้ำ',    zone:'โถงอาหาร', shift:'am',freq:'ทุกวัน',        note:'เช็ดพื้น อ่าง และกระจก',done:false,photos:[],doneBy:null,doneAt:null,doneDate:null},
+  {id:4, name:'เช็ดเคาน์เตอร์บริการ',  zone:'โถงอาหาร', shift:'am',freq:'ทุกวัน',        note:'',done:false,photos:[],doneBy:null,doneAt:null,doneDate:null},
+  {id:5, name:'กวาดและถูพื้นโถงอาหาร', zone:'โถงอาหาร', shift:'am',freq:'ทุกวัน',        note:'',done:false,photos:[],doneBy:null,doneAt:null,doneDate:null},
+  {id:6, name:'ล้างพื้นครัวก่อนปิด',   zone:'ครัว',      shift:'pm',freq:'ทุกวัน',        note:'',done:false,photos:[],doneBy:null,doneAt:null,doneDate:null},
+  {id:7, name:'ล้างพื้นโถงอาหาร',      zone:'โถงอาหาร', shift:'pm',freq:'ทุกวัน',        note:'',done:false,photos:[],doneBy:null,doneAt:null,doneDate:null},
+  {id:8, name:'เช็ดกระจกร้าน',        zone:'โถงอาหาร', shift:'pm',freq:'ทุกสัปดาห์',   note:'',done:false,photos:[],doneBy:null,doneAt:null,doneDate:null},
+  {id:9, name:'ทำความสะอาดตู้เย็น',    zone:'ครัว',      shift:'pm',freq:'ทุก 2 สัปดาห์',note:'เช็ดทั้งด้านในและนอก',done:false,photos:[],doneBy:null,doneAt:null,doneDate:null},
+  {id:10,name:'ล้างห้องน้ำรอบปิดร้าน', zone:'โถงอาหาร', shift:'pm',freq:'ทุกวัน',        note:'',done:false,photos:[],doneBy:null,doneAt:null,doneDate:null},
 ];
 const TEMPLATES = [
   {icon:'🧹',name:'กวาดพื้น',            zone:'โถงอาหาร',shift:'am',freq:'ทุกวัน',        note:''},
@@ -61,6 +61,106 @@ let todayView='list',taskView='list';
 let confirmCb=null;
 
 const getStaff=id=>window.staff.find(s=>s.id===id);
+
+// ─── FREQUENCY & DEADLINE SYSTEM ───
+// วันจันทร์ = ต้นสัปดาห์
+
+function getMondayOf(date){
+  const d=new Date(date);
+  const day=d.getDay(); // 0=อาทิตย์
+  const diff=day===0?-6:1-day; // ถอยกลับไปจันทร์
+  d.setDate(d.getDate()+diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function getFreqWindow(freq, fromDate){
+  // คืน {start, end} ของช่วงที่งานนี้ควรทำ
+  const d = new Date(fromDate);
+  d.setHours(0,0,0,0);
+  if(freq==='ทุกวัน'){
+    return {start:new Date(d), end:new Date(d.getTime()+86400000)};
+  }
+  if(freq==='ทุก 3 วัน'){
+    return {start:new Date(d), end:new Date(d.getTime()+3*86400000)};
+  }
+  if(freq==='ทุกสัปดาห์'){
+    const mon=getMondayOf(d);
+    const sun=new Date(mon); sun.setDate(sun.getDate()+7);
+    return {start:mon, end:sun};
+  }
+  if(freq==='ทุก 2 สัปดาห์'){
+    const mon=getMondayOf(d);
+    const end=new Date(mon); end.setDate(end.getDate()+14);
+    return {start:mon, end:end};
+  }
+  if(freq==='ทุกเดือน'){
+    const start=new Date(d.getFullYear(),d.getMonth(),1);
+    const end=new Date(d.getFullYear(),d.getMonth()+1,1);
+    return {start, end};
+  }
+  return {start:new Date(d), end:new Date(d.getTime()+86400000)};
+}
+
+function getCurrentWindow(freq){
+  return getFreqWindow(freq, new Date());
+}
+
+function taskShouldReset(t){
+  // คืน true ถ้างานนี้ถึงรอบรีเซ็ตแล้ว (ควรทำรอบใหม่)
+  if(!t.done || !t.doneDate) return false;
+  const win=getFreqWindow(freq=t.freq, t.doneDate);
+  const now=new Date(); now.setHours(0,0,0,0);
+  // ถ้าปัจจุบันพ้น end ของ window ที่ทำไป → reset
+  return now >= win.end;
+}
+
+function taskIsOverdue(t){
+  // งานที่ยังไม่ทำ และช่วงก่อนหน้าผ่านไปแล้ว
+  if(t.done) return false;
+  const win=getCurrentWindow(t.freq);
+  // overdue ถ้ามีช่วงก่อนหน้าที่ควรทำแต่ไม่ได้ทำ
+  // ตรวจ: t.doneDate ว่าง หรือ doneDate อยู่ก่อน window ปัจจุบัน
+  if(!t.doneDate) return false; // ยังไม่เคยทำ → แค่ pending ปกติ
+  const doneD=new Date(t.doneDate); doneD.setHours(0,0,0,0);
+  // ถ้า doneDate อยู่ก่อน window ปัจจุบัน → overdue
+  return doneD < win.start;
+}
+
+function deadlineLabel(freq){
+  const win=getCurrentWindow(freq);
+  const end=new Date(win.end); end.setDate(end.getDate()-1); // end-1 = วันสุดท้าย
+  const thDays=['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์'];
+  const thMonths=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+  const today=new Date(); today.setHours(0,0,0,0);
+  const diffDays=Math.round((end-today)/86400000);
+  if(freq==='ทุกวัน') return 'ต้องทำวันนี้';
+  if(freq==='ทุก 3 วัน'){
+    if(diffDays===0) return 'ต้องทำวันนี้';
+    return \`ภายใน \${diffDays} วัน\`;
+  }
+  if(freq==='ทุกสัปดาห์'||freq==='ทุก 2 สัปดาห์'){
+    if(diffDays===0) return \`วัน\${thDays[end.getDay()]}นี้\`;
+    return \`ภายใน\${thDays[end.getDay()]} (\${end.getDate()} \${thMonths[end.getMonth()]})\`;
+  }
+  if(freq==='ทุกเดือน'){
+    return \`ภายในสิ้นเดือน\${thMonths[end.getMonth()]}\`;
+  }
+  return '';
+}
+
+function applyFreqReset(){
+  // เรียกก่อน render — reset tasks ที่ถึงรอบใหม่
+  let changed=false;
+  window.tasks.forEach(t=>{
+    if(taskShouldReset(t)){
+      t.done=false; t.doneBy=null; t.doneAt=null; t.doneDate=null; t.photos=[];
+      changed=true;
+    }
+  });
+  if(changed && window.fbSaveTasks) window.fbSaveTasks();
+}
+
 const stampNow=()=>{const n=new Date();return\`\${n.getHours().toString().padStart(2,'0')}:\${n.getMinutes().toString().padStart(2,'0')} น.\`;};
 const thDays=['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์'];
 const thMonths=['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
@@ -143,6 +243,7 @@ function setTaskView(v){
 
 // ─── RENDER TODAY ───
 function renderToday(){
+  applyFreqReset();
   ['am','pm'].forEach(sh=>{
     const all=window.tasks.filter(t=>t.shift===sh);
     const list=all.filter(matchFilter);
@@ -370,7 +471,7 @@ function saveTask(){
     const t=window.tasks.find(x=>x.id===eId);
     if(t){t.name=name;t.note=note;t.zone=zone;t.freq=freq;t.shift=eShift;}
   } else {
-    window.tasks.push({id:nextId++,name,note,zone,freq,shift:eShift,done:false,photos:[],doneBy:null,doneAt:null});
+    window.tasks.push({id:nextId++,name,note,zone,freq,shift:eShift,done:false,photos:[],doneBy:null,doneAt:null,doneDate:null});
   }
   closeModal('editOvl');renderToday();
   if(window.curTab==='tasks') renderTasks();
@@ -481,7 +582,7 @@ function commitCI(){
   const dateObj=new Date(now);
   ci.taskIds.forEach(id=>{
     const t=window.tasks.find(x=>x.id===id);if(!t)return;
-    t.done=true;t.doneBy=ci.staff;t.doneAt=ts;t.photos=[...ci.photos];
+    t.done=true;t.doneBy=ci.staff;t.doneAt=ts;t.doneDate=ci.date;t.photos=[...ci.photos];
     window.hist.unshift({name:t.name,zone:t.zone,shift:t.shift,who:ci.staff,time:ts,ts:dateObj,dateStr:fmtDateFull(dateObj),photos:[...ci.photos]});
   });
   closeModal('ciOvl');renderToday();
@@ -493,7 +594,7 @@ function undoTask(id){
   const t=window.tasks.find(x=>x.id===id);if(!t)return;
   showConfirm(\`ยกเลิกงาน "\${t.name}"?\`,()=>{
     window.hist=window.hist.filter(h=>!(h.name===t.name&&h.who===t.doneBy&&h.time===t.doneAt));
-    t.done=false;t.photos=[];t.doneBy=null;t.doneAt=null;
+    t.done=false;t.photos=[];t.doneBy=null;t.doneAt=null;t.doneDate=null;
     renderToday();if(window.curTab==='history') renderHist();
     if(window.fbSaveTasks) fbSaveTasks();
     if(window.fbSaveHist) fbSaveHist();
@@ -751,7 +852,7 @@ function connectDB(){
       window.tasks = objToArr(data).map(t=>({
         ...t,
         photos: t.photos ? Object.values(t.photos) : [],
-        done: t.done ?? false, doneBy: t.doneBy ?? null, doneAt: t.doneAt ?? null,
+        done: t.done ?? false, doneBy: t.doneBy ?? null, doneAt: t.doneAt ?? null, doneDate: t.doneDate ?? null,
       }));
       renderToday();
       if(window.curTab==='tasks') renderTasks();
@@ -1283,6 +1384,14 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 .tpl-card .tpl-icon { font-size: 24px; margin-bottom: 6px; }
 .tpl-card .tpl-name { font-size: 12px; font-weight: 700; color: var(--text2); line-height: 1.3; }
 .tpl-card .tpl-zone { font-size: 10px; color: var(--sub); margin-top: 3px; }
+
+/* ── OVERDUE & DEADLINE ── */
+.tcard-overdue { border-left: 3px solid var(--red); }
+.overdue-bar { font-size: 11px; font-weight: 700; color: #fff; background: var(--red); border-radius: 6px; padding: 3px 8px; margin-bottom: 6px; }
+.deadline-bar { font-size: 11px; font-weight: 600; color: var(--amber); background: var(--amber-lt); border-radius: 6px; padding: 3px 8px; margin-bottom: 6px; }
+.ci-btn-overdue { background: var(--red) !important; color: #fff !important; }
+.tz-dishwash { background: var(--teal-lt, #e6faf5); color: var(--teal, #0d9488); }
+
 .tpl-or { text-align: center; font-size: 12px; color: var(--dim); margin: 10px 0; position: relative; font-weight: 600; }
 .tpl-or::before, .tpl-or::after { content:''; position: absolute; top: 50%; width: 43%; height: 1.5px; background: var(--border); }
 .tpl-or::before { left: 0; } .tpl-or::after { right: 0; }
