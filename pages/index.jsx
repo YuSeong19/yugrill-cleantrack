@@ -47,7 +47,7 @@ const TEMPLATES = [
 ];
 const EMOJIS=['👩','👨','🧑','👩‍🍳','👨‍🍳','🧑‍🍳','👩‍💼','👨‍💼','🧹','⭐','🌟','💪','😊','🐱','🐶','🦊','🌸','⚡'];
 const FREQ_ORDER=['ทุกวัน','ทุก 3 วัน','ทุกสัปดาห์','ทุก 2 สัปดาห์','ทุกเดือน'];
-const ZONE_GROUPS={ front:['โถงอาหาร'], kitchen:['ครัว'] };
+const ZONE_GROUPS={ front:['โถงอาหาร'], kitchen:['ครัว'], dishwash:['ล้างจาน'] };
 
 window.hist=[]; let nextId=20,nextSid=10; window.curTab='today'; window.fbReady=false;
 let histFilter='day',histOffset=0;
@@ -93,8 +93,9 @@ function goTab(t){
 
 // ─── FILTER HELPERS ───
 function matchFilter(t){
-  if(alertZoneFilter==='front'   && !ZONE_GROUPS.front.includes(t.zone))   return false;
-  if(alertZoneFilter==='kitchen' && !ZONE_GROUPS.kitchen.includes(t.zone)) return false;
+  if(alertZoneFilter==='front'    && !ZONE_GROUPS.front.includes(t.zone))    return false;
+  if(alertZoneFilter==='kitchen'  && !ZONE_GROUPS.kitchen.includes(t.zone))  return false;
+  if(alertZoneFilter==='dishwash' && !ZONE_GROUPS.dishwash.includes(t.zone)) return false;
   if(alertFreqFilter!=='all'){
     const cutoff=FREQ_ORDER.indexOf(alertFreqFilter);
     const tidx=FREQ_ORDER.indexOf(t.freq);
@@ -104,7 +105,7 @@ function matchFilter(t){
 }
 function setAlertZone(v){
   alertZoneFilter=v;
-  ['all','front','kitchen'].forEach(k=>{
+  ['all','front','kitchen','dishwash'].forEach(k=>{
     const el=document.getElementById('afz-'+k);
     if(el) el.classList.toggle('on',k===v);
   });
@@ -198,8 +199,9 @@ function renderAlert(){
   const allUndone=window.tasks.filter(t=>!t.done);
   if(!allUndone.length){el.innerHTML='';return;}
   let zf=allUndone;
-  if(alertZoneFilter==='front')   zf=allUndone.filter(t=>ZONE_GROUPS.front.includes(t.zone));
-  if(alertZoneFilter==='kitchen') zf=allUndone.filter(t=>ZONE_GROUPS.kitchen.includes(t.zone));
+  if(alertZoneFilter==='front')    zf=allUndone.filter(t=>ZONE_GROUPS.front.includes(t.zone));
+  if(alertZoneFilter==='kitchen')  zf=allUndone.filter(t=>ZONE_GROUPS.kitchen.includes(t.zone));
+  if(alertZoneFilter==='dishwash') zf=allUndone.filter(t=>ZONE_GROUPS.dishwash.includes(t.zone));
   let overdue=zf;
   if(alertFreqFilter!=='all'){
     const cutoff=FREQ_ORDER.indexOf(alertFreqFilter);
@@ -237,7 +239,7 @@ function renderTasks(){
   });
 }
 function mgrCard(t,i){
-  const zLabel=t.zone==='ครัว'?'🍳 ครัว':'🏠 หน้าบ้าน';
+  const zLabel=t.zone==='ครัว'?'🍳 ครัว':t.zone==='ล้างจาน'?'🫧 ล้างจาน':'🏠 หน้าบ้าน';
   return\`<div class="mgr-card" style="animation-delay:\${i*.04}s">
     <div class="mgr-card-info">
       <div class="mgr-card-name">\${t.name}</div>
@@ -296,7 +298,7 @@ function openEditModal(id){
   document.getElementById('eNote').value=t?t.note||'':'';
   document.getElementById('eFreq').value=t?t.freq:'ทุกวัน';
   eShift=t?t.shift:'am';
-  eZone=t?(ZONE_GROUPS.kitchen.includes(t.zone)?'kitchen':'front'):'front';
+  eZone=t?(ZONE_GROUPS.kitchen.includes(t.zone)?'kitchen':ZONE_GROUPS.dishwash.includes(t.zone)?'dishwash':'front'):'front';
   refreshShiftSeg();refreshZoneSeg();
   // photos
   const hasPhotos = t&&t.photos&&t.photos.length>0;
@@ -342,7 +344,7 @@ function openEditModalFromTpl(tpl){
   document.getElementById('eNote').value=tpl.note||'';
   document.getElementById('eFreq').value=tpl.freq;
   eShift=tpl.shift;
-  eZone=ZONE_GROUPS.kitchen.includes(tpl.zone)?'kitchen':'front';
+  eZone=ZONE_GROUPS.kitchen.includes(tpl.zone)?'kitchen':ZONE_GROUPS.dishwash.includes(tpl.zone)?'dishwash':'front';
   refreshShiftSeg();refreshZoneSeg();
   document.getElementById('editOvl').style.display='flex';
 }
@@ -352,8 +354,9 @@ function refreshShiftSeg(){
 }
 function eSetShift(sh){eShift=sh;refreshShiftSeg();}
 function refreshZoneSeg(){
-  document.getElementById('zone-front').className  ='seg-btn'+(eZone==='front'?' on-am':'');
-  document.getElementById('zone-kitchen').className='seg-btn'+(eZone==='kitchen'?' on-pm':'');
+  document.getElementById('zone-front').className   ='seg-btn'+(eZone==='front'?' on-am':'');
+  document.getElementById('zone-kitchen').className ='seg-btn'+(eZone==='kitchen'?' on-pm':'');
+  document.getElementById('zone-dishwash').className='seg-btn'+(eZone==='dishwash'?' on-am':'');
 }
 function eSetZone(z){eZone=z;refreshZoneSeg();}
 function saveTask(){
@@ -361,7 +364,7 @@ function saveTask(){
   if(!name){document.getElementById('eName').classList.add('err');document.getElementById('eName').focus();return;}
   document.getElementById('eName').classList.remove('err');
   const note=document.getElementById('eNote').value.trim();
-  const zone=eZone==='kitchen'?'ครัว':'โถงอาหาร';
+  const zone=eZone==='kitchen'?'ครัว':eZone==='dishwash'?'ล้างจาน':'โถงอาหาร';
   const freq=document.getElementById('eFreq').value;
   if(eId!==null){
     const t=window.tasks.find(x=>x.id===eId);
@@ -572,7 +575,7 @@ function hCard(h,hi){
     <div class="hcard-top">
       <div class="hcard-info">
         <div class="hcard-name">\${h.name}</div>
-        <div class="hcard-meta">\${h.zone==='ครัว'?'🍳 ครัว':'🏠 หน้าบ้าน'} · \${h.shift==='am'?'🌅 เช้า':'🌙 เย็น'}<br>\${s.emo} \${s.name} · 🕐 \${h.time}\${h.dateStr?' · '+h.dateStr:''}</div>
+        <div class="hcard-meta">\${h.zone==='ครัว'?'🍳 ครัว':h.zone==='ล้างจาน'?'🫧 ล้างจาน':'🏠 หน้าบ้าน'} · \${h.shift==='am'?'🌅 เช้า':'🌙 เย็น'}<br>\${s.emo} \${s.name} · 🕐 \${h.time}\${h.dateStr?' · '+h.dateStr:''}</div>
       </div>
       <div class="hbadge">✅ เสร็จ</div>
     </div>
@@ -1066,7 +1069,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 .tmeta { display: flex; gap: 5px; flex-wrap: wrap; }
 .tag { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
 .tz-front   { background: var(--blue-lt);  color: var(--blue);  }   /* 🏠 หน้าบ้าน — ฟ้า */
-.tz-kitchen { background: var(--amber-lt); color: var(--amber); }   /* 🍳 ครัว — ส้มอำพัน */
+.tz-kitchen  { background: var(--amber-lt); color: var(--amber); }   /* 🍳 ครัว — ส้มอำพัน */
+.tz-dishwash { background: var(--teal-lt,#e6faf5); color: var(--teal,#0d9488); } /* 🫧 ล้างจาน — เขียวน้ำ */
 .tf   { background: var(--green-lt);  color: var(--green); }
 .tf-pm{ background: var(--pink-lt);   color: var(--pink); }
 .tnote { font-size: 11px; color: var(--sub); margin-top: 5px; line-height: 1.5; }
@@ -1338,8 +1342,9 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
       <div class="filter-label">📍 โซน</div>
       <div class="filter-row">
         <div class="fchip on" id="afz-all"     onclick="setAlertZone('all')">ทั้งหมด</div>
-        <div class="fchip"    id="afz-front"   onclick="setAlertZone('front')">🏠 หน้าบ้าน</div>
-        <div class="fchip"    id="afz-kitchen" onclick="setAlertZone('kitchen')">🍳 ครัว</div>
+        <div class="fchip"    id="afz-front"    onclick="setAlertZone('front')">🏠 หน้าบ้าน</div>
+        <div class="fchip"    id="afz-kitchen"  onclick="setAlertZone('kitchen')">🍳 ครัว</div>
+        <div class="fchip"    id="afz-dishwash" onclick="setAlertZone('dishwash')">🫧 ล้างจาน</div>
       </div>
       <div class="filter-label">🔄 ความถี่</div>
       <div class="filter-row">
@@ -1501,8 +1506,9 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
       <div class="msec">
         <div class="msec-title">โซน / พื้นที่</div>
         <div class="seg">
-          <button class="seg-btn" id="zone-front"   onclick="eSetZone('front')">🏠 หน้าบ้าน</button>
-          <button class="seg-btn" id="zone-kitchen" onclick="eSetZone('kitchen')">🍳 ครัว</button>
+          <button class="seg-btn" id="zone-front"    onclick="eSetZone('front')">🏠 หน้าบ้าน</button>
+          <button class="seg-btn" id="zone-kitchen"  onclick="eSetZone('kitchen')">🍳 ครัว</button>
+          <button class="seg-btn" id="zone-dishwash" onclick="eSetZone('dishwash')">🫧 ล้างจาน</button>
         </div>
       </div>
       <div class="msec">
