@@ -1191,7 +1191,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 .hdr, .tabs, .tab, .bnav, .bni, .card, .stat, .prog-box, .filter-block,
 .tcard, .mgr-card, .hcard, .sc, .mbox, .period-nav,
 .fchip, .schip, .tsel, .ef input, .ef select, .ef textarea {
-  transition: background .25s, border-color .25s, color .25s, box-shadow .25s;
+  transition: background .2s, color .2s;
 }
 @keyframes fadeUp { from { opacity:0; transform:translateY(6px) } to { opacity:1; transform:none } }
 @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
@@ -1226,7 +1226,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
-.bni { flex: 1; padding: 10px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; font-size: 10px; font-weight: 600; color: var(--dim); transition: color .2s; min-height: 44px; -webkit-tap-highlight-color: transparent; }
+.bni { flex: 1; padding: 10px 4px 6px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; font-size: 10px; font-weight: 600; color: var(--dim); transition: color .15s; min-height: 44px; -webkit-tap-highlight-color: transparent; }
 .bni .ic { font-size: 20px; }
 .bni.on { color: var(--green); }
 @media(min-width:641px) { .bnav { display: none; } }
@@ -1234,7 +1234,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 /* ─── DESKTOP TABS ─── */
 .tabs { display: flex; background: var(--white); border-bottom: 2px solid var(--border); overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
-.tab { flex: 1; min-width: 80px; padding: 14px 8px; text-align: center; font-size: 13px; font-weight: 600; color: var(--sub); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .2s; white-space: nowrap; }
+.tab { flex: 1; min-width: 80px; padding: 14px 8px; text-align: center; font-size: 13px; font-weight: 600; color: var(--sub); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: color .15s; white-space: nowrap; }
 .tab.on { color: var(--green); border-color: var(--green); }
 .tab:hover:not(.on) { color: var(--text2); background: var(--bg); }
 @media(max-width:640px) { .tabs { display: none; } }
@@ -1285,8 +1285,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 
 /* ─── TASK CARD (list) ─── */
 .tasklist { display: flex; flex-direction: column; gap: 8px; }
-.tcard { background: var(--card); border: 1.5px solid var(--border); border-radius: var(--rad); padding: 14px 14px 12px; display: flex; align-items: flex-start; gap: 12px; transition: all .18s; position: relative; overflow: hidden; animation: fadeUp .22s ease both; box-shadow: var(--shadow); }
-.tcard:hover { border-color: var(--border2); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.tcard { background: var(--card); border: 1.5px solid var(--border); border-radius: var(--rad); padding: 14px 14px 12px; display: flex; align-items: flex-start; gap: 12px; position: relative; overflow: hidden; box-shadow: var(--shadow); }
+.tcard:hover { border-color: var(--border2); }
 .tcard.done { opacity: .65; }
 .tcard.done:hover { transform: none; }
 .tcard-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 4px 0 0 4px; }
@@ -1331,13 +1331,13 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 .tasklist.grid-view .ci-btn, .tasklist.grid-view .undo-btn { font-size: 11px; padding: 5px 9px; }
 
 /* ─── CHECKIN BUTTON ─── */
-.big-ci-btn { width: 100%; background: linear-gradient(135deg, var(--green), var(--teal)); border: none; border-radius: var(--rad); padding: 16px 20px; color: var(--white); font-family: 'Sarabun', sans-serif; cursor: pointer; display: flex; align-items: center; gap: 14px; transition: all .2s; margin-bottom: 8px; box-shadow: 0 4px 16px rgba(30,140,130,.3); }
-.big-ci-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(22,163,74,.45); filter: brightness(1.1); }
+.big-ci-btn { width: 100%; background: linear-gradient(135deg, var(--green), var(--teal)); border: none; border-radius: var(--rad); padding: 16px 20px; color: var(--white); font-family: 'Sarabun', sans-serif; cursor: pointer; display: flex; align-items: center; gap: 14px; transition: opacity .15s; margin-bottom: 8px; box-shadow: 0 4px 16px rgba(30,140,130,.3); }
+.big-ci-btn:hover { opacity: .9; }
 .big-ci-btn:active { transform: none; }
 .ci-icon { width: 44px; height: 44px; background: rgba(255,255,255,.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
 
 /* ─── ALERT ─── */
-.alert-banner { background: var(--card); border: 1.5px solid var(--red-mid); border-radius: var(--rad); padding: 14px; margin-bottom: 8px; box-shadow: 0 2px 10px rgba(220,38,38,.1); animation: fadeUp .3s ease both; }
+.alert-banner { background: var(--card); border: 1.5px solid var(--red-mid); border-radius: var(--rad); padding: 14px; margin-bottom: 8px; box-shadow: 0 2px 10px rgba(220,38,38,.1); }
 .alert-head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; }
 .alert-head .ico { width: 32px; height: 32px; background: var(--red-lt); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
 .alert-head .title { font-family: 'Prompt', sans-serif; font-size: 14px; font-weight: 700; color: var(--red); }
@@ -1358,8 +1358,8 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 .add-btn { background: var(--green); color: var(--white); border: none; border-radius: var(--rad-s); padding: 9px 16px; font-family: 'Sarabun', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: all .18s; display: flex; align-items: center; gap: 6px; white-space: nowrap; box-shadow: 0 2px 8px rgba(22,163,74,.3); }
 .add-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
 .mgr-list { display: flex; flex-direction: column; gap: 8px; }
-.mgr-card { background: var(--card); border: 1.5px solid var(--border); border-radius: var(--rad); padding: 13px 14px; display: flex; align-items: center; gap: 12px; transition: all .18s; animation: fadeUp .2s ease both; box-shadow: var(--shadow); }
-.mgr-card:hover { border-color: var(--border2); box-shadow: var(--shadow-md); }
+.mgr-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--rad); padding: 13px 14px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow); }
+.mgr-card:hover { border-color: var(--border2); }
 .mgr-card-info { flex: 1; min-width: 0; }
 .mgr-card-name { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 5px; }
 .mgr-card-meta { display: flex; gap: 5px; flex-wrap: wrap; }
@@ -1436,7 +1436,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 /* ─── MODALS ─── */
 @keyframes fo { from{opacity:0} to{opacity:1} }
 @keyframes su { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:none} }
-.ovl { position: fixed; inset: 0; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; background: rgba(0,0,0,.45); backdrop-filter: blur(4px); z-index: 400; display: flex; align-items: flex-end; justify-content: center; animation: fo .2s ease; }
+.ovl { position: fixed; inset: 0; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; background: rgba(0,0,0,.5); z-index: 400; display: flex; align-items: flex-end; justify-content: center; }
 @media(min-width:600px) { .ovl { align-items: center; padding: 20px; } }
 .mbox { background: var(--white); border-radius: 22px 22px 0 0; width: 100%; max-width: 500px; display: flex; flex-direction: column; max-height: 93vh; overflow: hidden; animation: su .22s ease; box-shadow: var(--shadow-lg); }
 @media(min-width:600px) { .mbox { border-radius: 22px; } }
@@ -1515,6 +1515,18 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 .ci-done-badge { font-size: 10px; color: var(--green); margin-left: 4px; }
 .ci-task.sel { background: var(--green-lt) !important; border-color: var(--green) !important; }
 
+
+
+/* ── PERFORMANCE: ลด GPU load บน mobile ── */
+@media (max-width: 640px) {
+  .tcard, .mgr-card, .stat, .modal, .ovl { box-shadow: none !important; }
+  .tcard { border: 1px solid var(--border); }
+  * { -webkit-tap-highlight-color: transparent; }
+  .tcard:hover, .mgr-card:hover { transform: none !important; }
+}
+/* ลด paint area */
+.tcard, .mgr-card { contain: layout style; }
+.tasklist, .mgr-list { contain: layout; }
 
 /* ── MOBILE IMPROVEMENTS ── */
 /* Safe area สำหรับ iPhone notch/home indicator */
