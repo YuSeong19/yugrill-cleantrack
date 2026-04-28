@@ -430,17 +430,41 @@ function eDelPhoto(i){
   renderEditPhotos(t);
   renderToday();
 }
+
+// ─── COMPRESS PHOTO ─── max 600px, 50% quality ~50-100KB
+function compressPhoto(file, cb){
+  var img=new Image();
+  var url=URL.createObjectURL(file);
+  img.onload=function(){
+    URL.revokeObjectURL(url);
+    var MAX=600,Q=0.5;
+    var w=img.width,h=img.height;
+    if(w>h){if(w>MAX){h=Math.round(h*MAX/w);w=MAX;}}
+    else{if(h>MAX){w=Math.round(w*MAX/h);h=MAX;}}
+    var cv=document.createElement('canvas');
+    cv.width=w;cv.height=h;
+    cv.getContext('2d').drawImage(img,0,0,w,h);
+    cb(cv.toDataURL('image/jpeg',Q));
+  };
+  img.onerror=function(){
+    var r=new FileReader();
+    r.onload=function(e){cb(e.target.result);};
+    r.readAsDataURL(file);
+  };
+  img.src=url;
+}
+
 function eAddPhotos(e){
   const t=window.tasks.find(x=>x.id===eId);if(!t)return;
   const files=Array.from(e.target.files);if(!files.length)return;
+  if(t.photos.length>=5){alert('อัพโหลดได้สูงสุด 5 รูป');e.target.value='';return;}
   let n=0;
-  files.forEach(f=>{
-    const r=new FileReader();
-    r.onload=ev=>{
-      t.photos.push(ev.target.result);
-      if(++n===files.length){ renderEditPhotos(t); renderToday(); }
-    };
-    r.readAsDataURL(f);
+  const allowed=files.slice(0,5-t.photos.length);
+  allowed.forEach(f=>{
+    compressPhoto(f,function(data){
+      t.photos.push(data);
+      if(++n===allowed.length){ renderEditPhotos(t); renderToday(); if(window.fbSaveTasks)fbSaveTasks(); }
+    });
   });
   e.target.value='';
 }
@@ -580,7 +604,8 @@ function ciToggle(id){
 function ciAddPh(e){
   const files=Array.from(e.target.files);if(!files.length) return;
   let n=0;
-  files.forEach(f=>{const r=new FileReader();r.onload=ev=>{ci.photos.push(ev.target.result);if(++n===files.length)renderCI();};r.readAsDataURL(f);});
+  const allowed=files.slice(0,5-ci.photos.length);
+  allowed.forEach(f=>{compressPhoto(f,function(data){ci.photos.push(data);if(++n===allowed.length)renderCI();});});
 }
 function ciDelPh(i){ci.photos.splice(i,1);renderCI();}
 function commitCI(){
@@ -614,6 +639,11 @@ function commitCI(){
   if(window.curTab==='history') renderHist();
   if(window.fbSaveTasks) fbSaveTasks();
   if(window.fbSaveHist) fbSaveHist();
+  // save photos แยก
+  savedTaskIds.forEach(id=>{
+    const t=window.tasks.find(x=>x.id===id);
+    if(t&&window.fbSavePhotos) fbSavePhotos(id,t.photos);
+  });
   showToast('✅ บันทึกเรียบร้อย!');
 }
 function undoTask(id){
@@ -624,6 +654,7 @@ function undoTask(id){
     renderToday();if(window.curTab==='history') renderHist();
     if(window.fbSaveTasks) fbSaveTasks();
     if(window.fbSaveHist) fbSaveHist();
+    if(window.fbSavePhotos) fbSavePhotos(t.id,[]);
   });
 }
 
@@ -888,7 +919,7 @@ function connectDB(){
     if(data){
       window.tasks = objToArr(data).map(t=>({
         ...t,
-        photos: t.photos ? Object.values(t.photos) : [],
+        photos: [],  // loaded from /photos node separately
         done: t.done ?? false, doneBy: t.doneBy ?? null, doneAt: t.doneAt ?? null, doneDate: t.doneDate ?? null,
       }));
       renderToday();
@@ -927,9 +958,21 @@ function connectDB(){
     syncing=true;
     const obj={};
     window.tasks.forEach(t=>{
-      obj[t.id]={...t, photos:t.photos.reduce((o,p,i)=>{o[i]=p;return o;},{})};
+      // ไม่เก็บ photos ใน tasks node — เก็บแยกที่ /photos
+      const {photos,...rest}=t;
+      obj[t.id]=rest;
     });
     set(ref(db,'tasks'),obj).finally(()=>syncing=false);
+  };
+  window.fbSavePhotos = (taskId, photos) => {
+    if(!window.fbReady) return;
+    if(!photos||!photos.length){
+      set(ref(db,'photos/'+taskId), null);
+      return;
+    }
+    const obj={};
+    photos.forEach((p,i)=>{obj['p'+i]=p;});
+    set(ref(db,'photos/'+taskId), obj);
   };
 
   window.fbSaveStaff = () => {
@@ -944,26 +987,60 @@ function connectDB(){
     if(!window.fbReady) return;
     syncing=true;
     const obj={};
+    const photoObj={};
     window.hist.forEach((h,i)=>{
-      obj['h'+(h.ts.getTime()+'_'+i)]={
-        ...h, ts: h.ts.toISOString(),
-        photos: h.photos.reduce((o,p,j)=>{o[j]=p;return o;},{}),
-      };
+      const key='h'+(h.ts.getTime()+'_'+i);
+      // ไม่เก็บ photos ใน hist node
+      const {photos,...rest}=h;
+      obj[key]={...rest, ts: h.ts.toISOString()};
+      // เก็บ photos แยก
+      if(photos&&photos.length){
+        const po={};
+        photos.forEach((p,j)=>{po['p'+j]=p;});
+        photoObj[key]=po;
+      }
     });
-    set(ref(db,'hist'),obj).finally(()=>syncing=false);
+    set(ref(db,'hist'),obj);
+    set(ref(db,'histPhotos'),Object.keys(photoObj).length?photoObj:null).finally(()=>syncing=false);
   };
 
   // ครั้งแรก: ถ้า Firebase ว่างให้ push ข้อมูลตั้งต้น
   onValue(ref(db,'tasks'), snap=>{
     window.fbReady = true;
     if(!snap.exists()){
-      // empty DB: push current local defaults as initial seed
-      const t={}; window.tasks.forEach(x=>{t[x.id]={...x,photos:x.photos.reduce((o,p,i)=>{o[i]=p;return o;},{})};});
+      // seed ครั้งแรก — ไม่ส่ง photos
+      const t={}; window.tasks.forEach(x=>{const {photos,...rest}=x;t[x.id]=rest;});
       set(ref(db,'tasks'),t);
       const s={}; window.staff.forEach(x=>{s[x.id]=x;});
       set(ref(db,'staff'),s);
     }
   }, {onlyOnce:true});
+
+  // โหลด photos แยก
+  onValue(ref(db,'photos'), snap=>{
+    const data=snap.val();
+    if(data){
+      window.tasks.forEach(t=>{
+        const ph=data[t.id];
+        t.photos=ph?Object.values(ph):[];
+      });
+      renderToday();
+      if(window.curTab==='tasks') renderTasks();
+    }
+  });
+
+  // โหลด histPhotos แยก
+  onValue(ref(db,'histPhotos'), snap=>{
+    const data=snap.val();
+    if(data&&window.hist.length){
+      window.hist.forEach((h,i)=>{
+        const key='h'+(h.ts.getTime()+'_'+i);
+        const ph=data[key];
+        h.photos=ph?Object.values(ph):[];
+      });
+      if(window.curTab==='history') renderHist();
+    }
+  });
 }`
     document.body.appendChild(s2)
   }, [])
