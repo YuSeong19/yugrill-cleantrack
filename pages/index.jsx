@@ -429,6 +429,8 @@ function eDelPhoto(i){
   t.photos.splice(i,1);
   renderEditPhotos(t);
   renderToday();
+  if(window.fbSavePhotos) fbSavePhotos(t.id, t.photos);
+  if(window.fbSaveTasks)  fbSaveTasks();
 }
 
 // ─── COMPRESS PHOTO ─── max 600px, 50% quality ~50-100KB
