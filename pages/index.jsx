@@ -65,6 +65,23 @@ const getStaff=id=>window.staff.find(s=>s.id===id);
 // ─── FREQUENCY & DEADLINE SYSTEM ───
 // วันจันทร์ = ต้นสัปดาห์
 
+
+// ─── LOCAL DATE HELPERS ───
+function localDateStr(date){
+  // คืน YYYY-MM-DD ตาม local timezone (ไม่ใช่ UTC)
+  const d=date||new Date();
+  const y=d.getFullYear();
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const dd=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+dd;
+}
+function localMidnight(dateStr){
+  // แปลง YYYY-MM-DD string → Date object เที่ยงคืน local time
+  const [y,m,d]=dateStr.split('-').map(Number);
+  const dt=new Date(y,m-1,d,0,0,0,0);
+  return dt;
+}
+
 function getMondayOf(date){
   const d=new Date(date);
   const day=d.getDay(); // 0=อาทิตย์
@@ -75,14 +92,17 @@ function getMondayOf(date){
 }
 
 function getFreqWindow(freq, fromDate){
-  // คืน {start, end} ของช่วงที่งานนี้ควรทำ
-  const d = new Date(fromDate);
+  // fromDate คือ YYYY-MM-DD string → แปลงเป็น local midnight
+  const d = typeof fromDate==='string' ? localMidnight(fromDate) : new Date(fromDate);
   d.setHours(0,0,0,0);
   if(freq==='ทุกวัน'){
-    return {start:new Date(d), end:new Date(d.getTime()+86400000)};
+    // window = วันที่ทำ 00:00 → วันถัดไป 00:00
+    const end=new Date(d); end.setDate(end.getDate()+1);
+    return {start:new Date(d), end};
   }
   if(freq==='ทุก 3 วัน'){
-    return {start:new Date(d), end:new Date(d.getTime()+3*86400000)};
+    const end=new Date(d); end.setDate(end.getDate()+3);
+    return {start:new Date(d), end};
   }
   if(freq==='ทุกสัปดาห์'){
     const mon=getMondayOf(d);
@@ -92,14 +112,15 @@ function getFreqWindow(freq, fromDate){
   if(freq==='ทุก 2 สัปดาห์'){
     const mon=getMondayOf(d);
     const end=new Date(mon); end.setDate(end.getDate()+14);
-    return {start:mon, end:end};
+    return {start:mon, end};
   }
   if(freq==='ทุกเดือน'){
     const start=new Date(d.getFullYear(),d.getMonth(),1);
     const end=new Date(d.getFullYear(),d.getMonth()+1,1);
     return {start, end};
   }
-  return {start:new Date(d), end:new Date(d.getTime()+86400000)};
+  const end=new Date(d); end.setDate(end.getDate()+1);
+  return {start:new Date(d), end};
 }
 
 function getCurrentWindow(freq){
@@ -109,9 +130,9 @@ function getCurrentWindow(freq){
 function taskShouldReset(t){
   // คืน true ถ้างานนี้ถึงรอบรีเซ็ตแล้ว (ควรทำรอบใหม่)
   if(!t.done || !t.doneDate) return false;
-  const win=getFreqWindow(freq=t.freq, t.doneDate);
-  const now=new Date(); now.setHours(0,0,0,0);
-  // ถ้าปัจจุบันพ้น end ของ window ที่ทำไป → reset
+  const win=getFreqWindow(t.freq, t.doneDate);
+  const now=localMidnight(localDateStr(new Date()));
+  // reset ถ้าวันปัจจุบัน (local) >= วันสิ้นสุด window
   return now >= win.end;
 }
 
@@ -122,8 +143,7 @@ function taskIsOverdue(t){
   // overdue ถ้ามีช่วงก่อนหน้าที่ควรทำแต่ไม่ได้ทำ
   // ตรวจ: t.doneDate ว่าง หรือ doneDate อยู่ก่อน window ปัจจุบัน
   if(!t.doneDate) return false; // ยังไม่เคยทำ → แค่ pending ปกติ
-  const doneD=new Date(t.doneDate); doneD.setHours(0,0,0,0);
-  // ถ้า doneDate อยู่ก่อน window ปัจจุบัน → overdue
+  const doneD=typeof t.doneDate==='string'?localMidnight(t.doneDate):new Date(t.doneDate);
   return doneD < win.start;
 }
 
@@ -250,7 +270,7 @@ function setTaskView(v){
 let _lastResetDate='';
 function renderToday(){
   // applyFreqReset แค่วันละครั้ง
-  const todayKey=new Date().toISOString().slice(0,10);
+  const todayKey=localDateStr(new Date());
   if(todayKey!==_lastResetDate){ applyFreqReset(); _lastResetDate=todayKey; }
   ['am','pm'].forEach(sh=>{
     const all=window.tasks.filter(t=>t.shift===sh);
@@ -635,7 +655,7 @@ function commitCI(){
   });
   closeModal('ciOvl');
   // Reset ci หลัง snapshot แล้ว
-  const todayStr=new Date().toISOString().slice(0,10);
+  const todayStr=localDateStr(new Date());
   ci={step:1,staff:savedStaff,taskIds:[],photos:[],date:todayStr};
   renderToday();
   if(window.curTab==='history') renderHist();
@@ -1020,14 +1040,39 @@ function connectDB(){
 
   // โหลด photos แยก
   onValue(ref(db,'photos'), snap=>{
-    const data=snap.val();
-    if(data){
+    const data=snap.val()||{};
+    let changed=false;
+    window.tasks.forEach(t=>{
+      const ph=data[t.id];
+      const newPhotos=ph?Object.values(ph):[];
+      // อัพเดตเฉพาะถ้า count เปลี่ยน
+      if((t.photos?t.photos.length:0)!==newPhotos.length){
+        t.photos=newPhotos;
+        changed=true;
+      }
+    });
+    // render เฉพาะถ้ามีการเปลี่ยนแปลง
+    if(changed){
+      // อัพเดตแค่ photo count badge ใน DOM โดยไม่ re-render ทั้งหน้า
       window.tasks.forEach(t=>{
-        const ph=data[t.id];
-        t.photos=ph?Object.values(ph):[];
+        const cnt=t.photos?t.photos.length:0;
+        const el=document.querySelector(\`[data-task-id="\${t.id}"] .photo-count\`);
+        if(el) el.textContent='📸 '+cnt+' รูป';
+        else if(cnt>0){
+          // card มีอยู่แล้วแต่ยังไม่มี badge → re-render เฉพาะ card นั้น
+          const card=document.querySelector(\`[data-task-id="\${t.id}"]\`);
+          if(card){
+            const infoEl=card.querySelector('.tinfo');
+            if(infoEl&&!infoEl.querySelector('.photo-count')){
+              const badge=document.createElement('div');
+              badge.className='photo-count';
+              badge.onclick=()=>openLB(t.id,0);
+              badge.textContent='📸 '+cnt+' รูป';
+              infoEl.appendChild(badge);
+            }
+          }
+        }
       });
-      renderToday();
-      if(window.curTab==='tasks') renderTasks();
     }
   });
 
@@ -1307,6 +1352,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 .done-info .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
 .warn-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; color: var(--red); background: var(--red-lt); padding: 2px 8px; border-radius: 99px; margin-top: 5px; }
 .photo-strip { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+.photo-count { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; color: var(--teal,#0d9488); background: var(--teal-lt,#e6faf5); border-radius: 99px; padding: 2px 8px; margin-top: 6px; cursor: pointer; width: fit-content; }
 .photo-strip img { width: 42px; height: 42px; border-radius: 8px; object-fit: cover; border: 2px solid var(--teal); cursor: pointer; transition: .15s; }
 .photo-strip img:hover { transform: scale(1.07); }
 .more-ph { width: 42px; height: 42px; border-radius: 8px; background: var(--bg); border: 1.5px solid var(--border2); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--sub); font-weight: 700; }
@@ -1517,6 +1563,24 @@ body { background: var(--bg); color: var(--text); font-family: 'Sarabun', sans-s
 
 
 
+
+/* ── INLINE FILTERS ── */
+.inline-filters {
+  margin-bottom: 12px;
+}
+.if-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.if-label {
+  font-size: 14px;
+  flex-shrink: 0;
+  width: 20px;
+}
+
 /* ── PERFORMANCE: ลด GPU load บน mobile ── */
 @media (max-width: 640px) {
   .tcard, .mgr-card, .stat, .modal, .ovl { box-shadow: none !important; }
@@ -1698,7 +1762,7 @@ html { overscroll-behavior-y: none; }
   <!-- ══ TODAY ══ -->
   <div id="tab-today">
 
-    <!-- ── TOP BAR: สถิติ + progress ── -->
+    <!-- ── สถิติ + progress ── -->
     <div class="stat-grid">
       <div class="stat stat-done"><div class="n cg" id="s-done">0</div><div class="l" style="color:var(--green)">✅ เสร็จแล้ว</div></div>
       <div class="stat stat-pend"><div class="n co" id="s-pend">0</div><div class="l" style="color:var(--amber)">⏳ รอทำ</div></div>
@@ -1710,7 +1774,7 @@ html { overscroll-behavior-y: none; }
       <div class="bar"><div class="bar-in" id="bar" style="width:0%"></div></div>
     </div>
 
-    <!-- ── BIG CTA เช็คอิน ── -->
+    <!-- ── เช็คอิน ── -->
     <button class="big-ci-btn" onclick="openCI(null)">
       <div class="ci-icon">📷</div>
       <div>
@@ -1720,57 +1784,42 @@ html { overscroll-behavior-y: none; }
       <div style="margin-left:auto;font-size:20px;opacity:.7">›</div>
     </button>
 
-    <!-- ── 2-COLUMN LAYOUT ── -->
-    <div class="today-cols">
-
-      <!-- LEFT: ตารางงานเช้า/เย็น -->
-      <div class="today-main">
-        <div class="shift-hdr">
-          <div class="shift-hdr-pill sh-am">🌅 เช้า <span class="shift-cnt" id="am-cnt">0/0</span></div>
-          <div class="vt-wrap">
-            <button class="vt-btn" id="today-vt-list" onclick="setTodayView('list')" title="รายการ">☰</button>
-            <button class="vt-btn on" id="today-vt-grid" onclick="setTodayView('grid')" title="กริด">⊞</button>
-          </div>
-        </div>
-        <div class="tasklist" id="am-list"></div>
-        <div class="shift-hdr" style="margin-top:16px">
-          <div class="shift-hdr-pill sh-pm">🌙 เย็น <span class="shift-cnt" id="pm-cnt">0/0</span></div>
-        </div>
-        <div class="tasklist" id="pm-list"></div>
+    <!-- ── Filter: โซน + ความถี่ (inline ไม่มีกรอบ) ── -->
+    <div class="inline-filters">
+      <div class="if-row">
+        <span class="if-label">📍</span>
+        <div class="fchip on" id="afz-all"     onclick="setAlertZone('all')">ทั้งหมด</div>
+        <div class="fchip"    id="afz-front"    onclick="setAlertZone('front')">🏠 หน้าบ้าน</div>
+        <div class="fchip"    id="afz-kitchen"  onclick="setAlertZone('kitchen')">🍳 ครัว</div>
+        <div class="fchip"    id="afz-dishwash" onclick="setAlertZone('dishwash')">🫧 ล้างจาน</div>
       </div>
-
-      <!-- RIGHT: งานยังไม่เสร็จ + filter -->
-      <div class="today-side">
-        <div class="side-panel">
-          <div class="side-panel-hdr">
-            <span>⚠️ ยังไม่เสร็จ</span>
-            <button class="side-collapse-btn" onclick="toggleSidePanel(this)" title="ซ่อน/แสดง">−</button>
-          </div>
-          <!-- Filter -->
-          <div class="side-filters">
-            <div class="filter-label" style="font-size:10px;margin-bottom:4px">📍 โซน</div>
-            <div class="filter-row" style="gap:4px">
-              <div class="fchip on" id="afz-all"     onclick="setAlertZone('all')" style="font-size:10px;padding:3px 8px">ทั้งหมด</div>
-              <div class="fchip"    id="afz-front"    onclick="setAlertZone('front')" style="font-size:10px;padding:3px 8px">🏠</div>
-              <div class="fchip"    id="afz-kitchen"  onclick="setAlertZone('kitchen')" style="font-size:10px;padding:3px 8px">🍳</div>
-              <div class="fchip"    id="afz-dishwash" onclick="setAlertZone('dishwash')" style="font-size:10px;padding:3px 8px">🫧</div>
-            </div>
-            <div class="filter-label" style="font-size:10px;margin:6px 0 4px">🔄 ความถี่</div>
-            <div class="filter-row" style="gap:4px">
-              <div class="fchip on" id="aff-all" onclick="setAlertFreq('all')" style="font-size:10px;padding:3px 8px">ทั้งหมด</div>
-              <div class="fchip"    id="aff-d1"  onclick="setAlertFreq('ทุกวัน')" style="font-size:10px;padding:3px 8px">ทุกวัน</div>
-              <div class="fchip"    id="aff-d3"  onclick="setAlertFreq('ทุก 3 วัน')" style="font-size:10px;padding:3px 8px">3 วัน</div>
-              <div class="fchip"    id="aff-w1"  onclick="setAlertFreq('ทุกสัปดาห์')" style="font-size:10px;padding:3px 8px">สัปดาห์</div>
-              <div class="fchip"    id="aff-w2"  onclick="setAlertFreq('ทุก 2 สัปดาห์')" style="font-size:10px;padding:3px 8px">2 สัปดาห์</div>
-              <div class="fchip"    id="aff-m1"  onclick="setAlertFreq('ทุกเดือน')" style="font-size:10px;padding:3px 8px">เดือน</div>
-            </div>
-          </div>
-          <!-- Alert list -->
-          <div id="alert-banner" class="side-alert-list"></div>
-        </div>
+      <div class="if-row">
+        <span class="if-label">🔄</span>
+        <div class="fchip on" id="aff-all" onclick="setAlertFreq('all')">ทั้งหมด</div>
+        <div class="fchip"    id="aff-d1"  onclick="setAlertFreq('ทุกวัน')">ทุกวัน</div>
+        <div class="fchip"    id="aff-d3"  onclick="setAlertFreq('ทุก 3 วัน')">3 วัน</div>
+        <div class="fchip"    id="aff-w1"  onclick="setAlertFreq('ทุกสัปดาห์')">สัปดาห์</div>
+        <div class="fchip"    id="aff-w2"  onclick="setAlertFreq('ทุก 2 สัปดาห์')">2 สัปดาห์</div>
+        <div class="fchip"    id="aff-m1"  onclick="setAlertFreq('ทุกเดือน')">เดือน</div>
       </div>
+    </div>
 
-    </div><!-- end today-cols -->
+    <!-- ── ตารางงานเช้า/เย็น (full width) ── -->
+    <div class="shift-hdr">
+      <div class="shift-hdr-pill sh-am">🌅 เช้า <span class="shift-cnt" id="am-cnt">0/0</span></div>
+      <div class="vt-wrap">
+        <button class="vt-btn" id="today-vt-list" onclick="setTodayView('list')" title="รายการ">☰</button>
+        <button class="vt-btn on" id="today-vt-grid" onclick="setTodayView('grid')" title="กริด">⊞</button>
+      </div>
+    </div>
+    <div class="tasklist" id="am-list"></div>
+    <div class="shift-hdr" style="margin-top:16px">
+      <div class="shift-hdr-pill sh-pm">🌙 เย็น <span class="shift-cnt" id="pm-cnt">0/0</span></div>
+    </div>
+    <div class="tasklist" id="pm-list"></div>
+
+    <!-- alert-banner ยังต้องมี (renderAlert ใช้) แต่ซ่อนไว้ -->
+    <div id="alert-banner" style="display:none"></div>
   </div>
 
   <!-- ══ TASKS ══ -->
