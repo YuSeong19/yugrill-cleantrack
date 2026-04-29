@@ -172,17 +172,42 @@ function deadlineLabel(freq){
 let _freqResetTimer=null;
 function applyFreqReset(){
   let changed=false;
+  const resetTasks=[];
   window.tasks.forEach(t=>{
     if(taskShouldReset(t)){
+      resetTasks.push({...t, photos:[...t.photos]}); // snapshot ก่อน reset
       t.done=false; t.doneBy=null; t.doneAt=null; t.doneDate=null; t.photos=[];
       changed=true;
     }
   });
-  // debounce save — ไม่ส่งทุกครั้งที่ render
-  if(changed && window.fbSaveTasks){
-    clearTimeout(_freqResetTimer);
-    _freqResetTimer=setTimeout(()=>window.fbSaveTasks(), 2000);
-  }
+  if(!changed) return;
+
+  // ย้ายรูปเก่า → ประวัติ (ถ้ามีรูป)
+  resetTasks.forEach(t=>{
+    if(t.photos&&t.photos.length>0&&t.doneBy&&t.doneDate){
+      // สร้าง hist entry จากวันที่ทำครั้งสุดท้าย
+      const doneD=localMidnight(t.doneDate);
+      window.hist.unshift({
+        name:t.name,
+        zone:t.zone,
+        shift:t.shift,
+        who:t.doneBy,
+        time:t.doneAt||'',
+        ts:doneD,
+        dateStr:fmtDateFull(doneD),
+        photos:[...t.photos],
+      });
+    }
+    // ลบรูปจาก Firebase /photos node
+    if(window.fbSavePhotos) window.fbSavePhotos(t.id,[]);
+  });
+
+  // debounce save
+  clearTimeout(_freqResetTimer);
+  _freqResetTimer=setTimeout(()=>{
+    if(window.fbSaveTasks) window.fbSaveTasks();
+    if(window.fbSaveHist) window.fbSaveHist();
+  }, 2000);
 }
 
 const stampNow=()=>{const n=new Date();return\`\${n.getHours().toString().padStart(2,'0')}:\${n.getMinutes().toString().padStart(2,'0')} น.\`;};
