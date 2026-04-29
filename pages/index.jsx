@@ -681,19 +681,19 @@ function undoTask(id){
 }
 
 // ─── HISTORY ───
-let autoDelMonths = 0; // 0 = off
+window.autoDelMonths = 0; // 0 = off
 
 function setAutoDel(val){
-  autoDelMonths = parseInt(val);
+  window.autoDelMonths = parseInt(val);
   const labels = {'0':'ปิดการลบอัตโนมัติ','1':'ลบประวัติที่เก่ากว่า 1 เดือน','3':'ลบประวัติที่เก่ากว่า 3 เดือน','6':'ลบประวัติที่เก่ากว่า 6 เดือน','12':'ลบประวัติที่เก่ากว่า 1 ปี'};
   document.getElementById('auto-del-sub').textContent = labels[val] || 'ปิดการลบอัตโนมัติ';
-  if(autoDelMonths > 0) runAutoDel();
+  if(window.autoDelMonths > 0) runAutoDel();
 }
 
 function runAutoDel(){
-  if(!autoDelMonths) return;
+  if(!window.autoDelMonths) return;
   const cutoff = new Date();
-  cutoff.setMonth(cutoff.getMonth() - autoDelMonths);
+  cutoff.setMonth(cutoff.getMonth() - window.autoDelMonths);
   const before = window.hist.length;
   window.hist = window.hist.filter(h => h.ts >= cutoff);
   const removed = before - window.hist.length;
@@ -1007,7 +1007,7 @@ function connectDB(){
 
   window.fbSaveSettings = () => {
     if(!window.fbReady) return;
-    set(ref(db,'settings'), { autoDelMonths });
+    set(ref(db,'settings'), { autoDelMonths: window.autoDelMonths||0 });
   };
 
   // โหลด settings
