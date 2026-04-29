@@ -1005,6 +1005,19 @@ function connectDB(){
     set(ref(db,'staff'),obj).finally(()=>syncing=false);
   };
 
+  window.fbSaveSettings = () => {
+    if(!window.fbReady) return;
+    set(ref(db,'settings'), { autoDelMonths });
+  };
+
+  // โหลด settings
+  onValue(ref(db,'settings'), snap=>{
+    const data=snap.val();
+    if(data && typeof data.autoDelMonths !== 'undefined'){
+      if(typeof applyAutoDelUI==='function') applyAutoDelUI(data.autoDelMonths);
+    }
+  });
+
   window.fbSaveHist = () => {
     if(!window.fbReady) return;
     syncing=true;
