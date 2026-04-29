@@ -269,9 +269,9 @@ function setTaskView(v){
 // ─── RENDER TODAY ───
 let _lastResetDate='';
 function renderToday(){
-  // applyFreqReset แค่วันละครั้ง
+  // applyFreqReset แค่วันละครั้ง และต้องรอ Firebase โหลดเสร็จก่อน
   const todayKey=localDateStr(new Date());
-  if(todayKey!==_lastResetDate){ applyFreqReset(); _lastResetDate=todayKey; }
+  if(window.fbReady && todayKey!==_lastResetDate){ applyFreqReset(); _lastResetDate=todayKey; }
   ['am','pm'].forEach(sh=>{
     const all=window.tasks.filter(t=>t.shift===sh);
     const list=all.filter(matchFilter);
